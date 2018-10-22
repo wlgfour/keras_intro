@@ -1,0 +1,6 @@
+*.h5
+.idea
+*/data/*
+*/log_dir/*
+*/tboard_log/*
+*/save/*
