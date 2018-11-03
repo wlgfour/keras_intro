@@ -6,16 +6,58 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+from typing import List
 
 print('done importing')
 
+# helpers
+print('defining helpers')
+
+
+class Debug(object):
+    """
+    class that says whether various parts of program are debugging
+    add flags to debug to toggle off
+    DEBUG and 'str' means that str is off
+    DEBUG and 'str' returns whether to execute block
+    *args is a list of blacklisted blocks
+    """
+    def __init__(self, debug: bool, *args):
+        super(Debug, self).__init__()
+        self._flags = list(args)
+        if debug:
+            self._flags.append('debug')  # if DEBUG and 'debug' means debugging
+            print('----------DEBUGGING----------')
+    def __add__(self, other: str):
+        # returns false if debug is on and  flag in flags
+        # true if debug is off or other not in flags
+        print(self._flags)
+        debugging = 'debug' in self._flags
+        flag = other in self._flags
+        print(debugging, flag)
+        return not(debugging and flag)
+
+
+def show_imgs(imgs, labels, rows, cols):
+    ax_imgs = [(plt.subplot(rows, cols, i),
+                imgs[i],
+                labels[i])
+               for i in range(1, rows * cols + 1)]
+    plt.tight_layout(pad=0.1)
+    for a, img, label in ax_imgs:
+        a.axis('off')
+        a.set_title(label)
+        a.imshow(img)
+    plt.show()
+
+
 # globals
 print('defining globals')
-
+DEBUG = Debug(True, 'load_data', 'train')
 VISUALIZE = False
 SAVE = True
 LOAD = False
-MODEL_NUMBER = 'v2.1'
+MODEL_NUMBER = 'v2.2_images'
 BASE_DIR = f'./log_dir/{MODEL_NUMBER}'
 SAVE_FILE = f'{BASE_DIR}/volcano_classifier_{MODEL_NUMBER}.h5'
 
@@ -36,51 +78,37 @@ if os.path.isdir(BASE_DIR):
             for file in log_files:
                 os.rename(f'{TBOARD_CUR_DIR}/{file}', f'{TBOARD_HIST_DIR}/{file}')
 
-
-# helpers
-print('defining helpers')
-
-
-def show_imgs(imgs, labels, rows, cols):
-    ax_imgs = [(plt.subplot(rows, cols, i),
-                imgs[i],
-                labels[i])
-               for i in range(1, rows * cols + 1)]
-    plt.tight_layout(pad=0.1)
-    for a, img, label in ax_imgs:
-        a.axis('off')
-        a.set_title(label)
-        a.imshow(img)
-    plt.show()
-
-
 # import data
-print('reading data')
+if DEBUG + 'load_data':
+    print('reading data')
 
-pd_train_images = pd.read_csv('data/train/train_images.csv', header=None)
-pd_train_labels = pd.read_csv('data/train/train_labels.csv')
-train_imgs = pd_train_images.values.reshape((-1, 110, 110))
-train_imgs = np.divide(train_imgs, 225)
-train_labels = pd_train_labels['Volcano?'].values
+    pd_train_images = pd.read_csv('data/train/train_images.csv', header=None)
+    pd_train_labels = pd.read_csv('data/train/train_labels.csv')
+    train_imgs = pd_train_images.values.reshape((-1, 110, 110))
+    train_imgs = np.divide(train_imgs, 225)
+    train_labels = pd_train_labels['Volcano?'].values
 
-pd_test_images = pd.read_csv('data/test/test_images.csv', header=None)
-pd_test_labels = pd.read_csv('data/test/test_labels.csv')
-test_imgs = pd_test_images.values.reshape((-1, 110, 110))
-test_imgs = np.divide(test_imgs, 225)
-test_labels = pd_test_labels['Volcano?'].values
+    pd_test_images = pd.read_csv('data/test/test_images.csv', header=None)
+    pd_test_labels = pd.read_csv('data/test/test_labels.csv')
+    test_imgs = pd_test_images.values.reshape((-1, 110, 110))
+    test_imgs = np.divide(test_imgs, 225)
+    test_labels = pd_test_labels['Volcano?'].values
 
-# visualize
-if VISUALIZE:
-    print('visualizing')
-    show_imgs(train_imgs, train_labels, 3, 3)
+    # visualize
+    if VISUALIZE:
+        print('visualizing')
+        show_imgs(train_imgs, train_labels, 3, 3)
 
-# model
-print('initializing model')
+    # model
+    print('initializing model')
 
-train_imgs = train_imgs.reshape((-1, 110, 110, 1))
-train_labels = to_categorical(train_labels, 2).astype(int)
-test_imgs = test_imgs.reshape((-1, 110, 110, 1))
-test_labels = to_categorical(test_labels, 2).astype(int)
+    train_imgs = train_imgs.reshape((-1, 110, 110, 1))
+    train_labels = to_categorical(train_labels, 2).astype(int)
+    test_imgs = test_imgs.reshape((-1, 110, 110, 1))
+    test_labels = to_categorical(test_labels, 2).astype(int)
+else:
+    print('skipping data load because of debug')
+    test_labels = test_imgs = train_labels = train_imgs = None
 
 if LOAD:
     print('    loading model')
@@ -89,7 +117,7 @@ else:
     print('    building model')
     model = k.Sequential()
 
-    model.add(Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=(110, 110, 1)))
+    model.add(Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=(110, 110, 1), name='m1.0'))
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu'))
     model.add(MaxPool2D(pool_size=(2, 2)))  # (110, 110) -> (55, 55)
     model.add(Dropout(0.15))
@@ -115,20 +143,55 @@ else:
                   )
 model.summary()
 
+# callbacks
+print('defining callbacks')
+
+
+class ActivationCollector(k.callbacks.Callback):
+    """
+    add to callbacks in model.fit to record activation maps of data after every batch in
+    self.images['layer_name']: List[image]
+    """
+    def __init__(self, layer_names: List[str], data: np.ndarray):
+        super().__init__()
+        print('defining image collector for intermediate layers')
+        self.data = data
+        self.images = dict()
+        self.names = list()
+        for layer in self.model.layers:
+            self.names.append(layer.name)
+        for name in layer_names:
+            if name in self.names:
+                self.images[name] = list()  # add layer names to images if layer from model  has name
+            else:
+                print(f'    could not find layer with name {name}')
+        self.mid_stages = k.Model(self.model.inputs,
+                                  [self.model.get_layer(name).outputs for name in list(self.images.keys())])
+
+    def on_batch_end(self, batch, logs=None):
+        if logs is None:
+            return
+
+
+
 callbacks = list()
 callbacks.append(k.callbacks.TensorBoard(log_dir=TBOARD_CUR_DIR, histogram_freq=1, batch_size=32,
                                          write_graph=True, write_grads=True, write_images=True))
+
 if SAVE:
     callbacks.append(k.callbacks.ModelCheckpoint(SAVE_FILE, monitor='val_loss', save_best_only=True, mode='min'))
 
-
 # train
-print('training model')
+if DEBUG + 'train':
+    print('training model')
 
-model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=20, batch_size=32, shuffle=True,
-          callbacks=callbacks)
+    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=20, batch_size=32,
+              shuffle=True,
+              callbacks=callbacks)
 
-# save
-if SAVE:
-    print('saving model')
-    model.save(SAVE_FILE)
+    # save
+    if SAVE:
+        print('saving model')
+        model.save(SAVE_FILE)
+else:
+    print('not training because of debug setting')
