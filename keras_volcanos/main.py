@@ -14,6 +14,61 @@ print('done importing')
 print('defining helpers')
 
 
+class ActivationCollector(k.callbacks.Callback):
+    """
+    add to callbacks in model.fit to record activation maps of data after every batch in
+    self.images['layer_name']: List[image]
+    """
+    def __init__(self, layer_names: List[str], data: np.ndarray =None, counter_mod: int =50):
+        super().__init__()
+        print('defining image collector for intermediate layers')
+        self.data = data
+        self.images = dict()
+        self.model_names = list()
+        self.mid_stages = None
+        self.layer_names = layer_names
+        self.counter = 0  # only save practice images on every counter_mod batches
+        self.counter_mod = counter_mod
+
+    def set_data(self, data):
+        self.data = data
+
+    def save(self, f):
+        for key in self.images:
+            np.save(f'{f}/{key}', self.images[key])
+
+    def load(self, f):
+        save_files = [file for file in os.listdir(f) if os.path.isfile(f'{f}/{file}')]
+        for s in save_files:
+            self.images[s.replace('.npy', '')] = np.load(s)
+
+    def animate_imgs(self, output_dir):
+        pass  # TODO: animate self.images
+
+    def on_train_begin(self, logs=None):
+        # input layer is hard coded in and will always be saved
+        self.model_names = [layer.name for layer in self.model.layers]
+        for name in self.layer_names:
+            if name in self.model_names:
+                # add layer names to images if layer from model as np.ndarray with shape layer.output_shape
+                layer_shape = self.model.get_layer(name).output_shape
+                self.images[name] = np.ndarray((1,) + layer_shape[1:])
+            else:
+                print(f'    could not find layer with name {name}')
+        # define model to pass data through
+        self.mid_stages = k.Model(self.model.inputs,
+                                  [self.model.get_layer(name).output for name in list(self.images.keys())])
+        # reshape self.data to be in batch format
+        self.data = np.reshape(self.data, (-1,) + self.model.layers[0].input_shape[1:])
+
+    def on_batch_end(self, batch, logs=None):
+        self.counter += 1
+        if self.counter % self.counter_mod == 0:
+            preds = self.mid_stages.predict(self.data)  # [layers, batch, width, height, channels]
+            for i, key in enumerate(self.images.keys()):
+                self.images[key] = np.concatenate((self.images[key], preds[i]))
+
+
 class Debug(object):
     """
     class that says whether various parts of program are debugging
@@ -22,7 +77,7 @@ class Debug(object):
     DEBUG and 'str' returns whether to execute block
     *args is a list of blacklisted blocks
     """
-    def __init__(self, debug: bool, *args):
+    def __init__(self, debug: bool, *args: str):
         super(Debug, self).__init__()
         self._flags = list(args)
         if debug:
@@ -59,6 +114,10 @@ LOAD = False
 MODEL_NUMBER = 'v2.2_images'
 BASE_DIR = f'./log_dir/{MODEL_NUMBER}'
 SAVE_FILE = f'{BASE_DIR}/volcano_classifier_{MODEL_NUMBER}.h5'
+ACT_SAVE = f'{BASE_DIR}/act_maps'
+ACT_LOAD = False
+act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'])
+# callback instance of k.callbacks.Callback
 
 # tensorboard and file management
 print('--starting file management--')
@@ -87,6 +146,11 @@ for file in log_files:
 if os.path.exists(SAVE_FILE):
     print('    found save file. setting LOAD to True')
     LOAD = True
+if os.path.isdir(ACT_SAVE):
+    print('    found act map save file. setting ACT_LOAD to true')
+    act_collector.load(ACT_SAVE)
+else:
+    os.mkdir(ACT_SAVE)
 print('--done with file management--')
 
 # import data
@@ -110,20 +174,19 @@ if DEBUG + 'load_data':
         print('visualizing')
         show_imgs(train_imgs, train_labels, 3, 3)
 
-    # model
-    print('initializing model')
-
+    act_collector.set_data(test_imgs[1:2])
     train_imgs = train_imgs.reshape((-1, 110, 110, 1))
     train_labels = to_categorical(train_labels, 2).astype(int)
     test_imgs = test_imgs.reshape((-1, 110, 110, 1))
     test_labels = to_categorical(test_labels, 2).astype(int)
-    act_collec_imgs = test_imgs[0:5]
 else:
     print('skipping data load because of debug')
-    act_collec_imgs = test_labels = test_imgs = train_labels = train_imgs = None
+    test_labels = test_imgs = train_labels = train_imgs = None
 
+# model
+print('initializing model')
 if LOAD:
-    print('    loading model')
+    print('    loading model and act imgs')
     model = k.models.load_model(SAVE_FILE)
 else:
     print('    building model')
@@ -157,60 +220,27 @@ model.summary()
 
 # callbacks
 print('defining callbacks')
-
-
-class ActivationCollector(k.callbacks.Callback):
-    """
-    add to callbacks in model.fit to record activation maps of data after every batch in
-    self.images['layer_name']: List[image]
-    """
-    def __init__(self, layer_names: List[str], data: np.ndarray):
-        super().__init__()
-        print('defining image collector for intermediate layers')
-        self.data = data
-        self.images = dict()
-        self.model_names = list()
-        self.mid_stages = None
-        self.layer_names = layer_names
-
-    def on_train_begin(self, logs=None):
-        self.model_names = [layer.name for layer in self.model.layers]
-        for name in self.layer_names:
-            if name in self.model_names:
-                # add layer names to images if layer from model as np.ndarray with shape layer.output_shape
-                layer_shape = self.model.get_layer(name).output_shape
-                self.images[name] = np.ndarray((1,) + layer_shape[1:])
-            else:
-                print(f'    could not find layer with name {name}')
-        self.mid_stages = k.Model(self.model.inputs,
-                                  [self.model.get_layer(name).output for name in list(self.images.keys())])
-
-    def on_epoch_end(self, epoch, logs=None):
-        preds = self.mid_stages.predict(self.data)  # [layers, batch, width, height, channels]
-        for i, key in enumerate(self.images.keys()):
-            self.images[key] = np.concatenate((self.images[key], preds[i]))
-
-
 callbacks = list()
 callbacks.append(k.callbacks.TensorBoard(log_dir=TBOARD_CUR_DIR, histogram_freq=1, batch_size=32,
                                          write_graph=True, write_grads=True, write_images=True))
-act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'], act_collec_imgs)
 callbacks.append(act_collector)
 
 if SAVE:
+    # save at checkpoints
     callbacks.append(k.callbacks.ModelCheckpoint(SAVE_FILE, monitor='val_loss', save_best_only=True, mode='min'))
 
 # train
 if DEBUG + 'train':
     print('training model')
 
-    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=20, batch_size=64,
+    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=1, batch_size=64,
               shuffle=True,
               callbacks=callbacks)
 
     # save
     if SAVE:
-        print('saving model')
+        print('saving model and activation maps')
+        act_collector.save(ACT_SAVE)
         model.save(SAVE_FILE)
 else:
     print('not training because of debug setting')
