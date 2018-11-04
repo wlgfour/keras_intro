@@ -19,7 +19,7 @@ class ActivationCollector(k.callbacks.Callback):
     add to callbacks in model.fit to record activation maps of data after every batch in
     self.images['layer_name']: List[image]
     """
-    def __init__(self, layer_names: List[str], data: np.ndarray =None, counter_mod: int =50):
+    def __init__(self, layer_names: List[str], data: np.ndarray =None, counter_mod: int =32):
         super().__init__()
         print('defining image collector for intermediate layers')
         self.data = data
@@ -29,16 +29,24 @@ class ActivationCollector(k.callbacks.Callback):
         self.layer_names = layer_names
         self.counter = 0  # only save practice images on every counter_mod batches
         self.counter_mod = counter_mod
+        self.every_epoch = False
+        self.save_dir = None
 
     def set_data(self, data):
         self.data = data
 
-    def save(self, f):
+    def set_save(self, every_epoch, f):
+        self.every_epoch = every_epoch
+        self.save_dir = f
+
+    def save(self, f=None):
+        if f is None:
+            f = self.save_dir
         for key in self.images:
             np.save(f'{f}/{key}', self.images[key])
 
     def load(self, f):
-        save_files = [file for file in os.listdir(f) if os.path.isfile(f'{f}/{file}')]
+        save_files = [lyr for lyr in os.listdir(f) if os.path.isfile(f'{f}/{lyr}')]
         for s in save_files:
             self.images[s.replace('.npy', '')] = np.load(s)
 
@@ -67,6 +75,10 @@ class ActivationCollector(k.callbacks.Callback):
             preds = self.mid_stages.predict(self.data)  # [layers, batch, width, height, channels]
             for i, key in enumerate(self.images.keys()):
                 self.images[key] = np.concatenate((self.images[key], preds[i]))
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.every_epoch:
+            self.save()
 
 
 class Debug(object):
@@ -117,6 +129,7 @@ SAVE_FILE = f'{BASE_DIR}/volcano_classifier_{MODEL_NUMBER}.h5'
 ACT_SAVE = f'{BASE_DIR}/act_maps'
 ACT_LOAD = False
 act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'])
+act_collector.set_save(True, ACT_SAVE)
 # callback instance of k.callbacks.Callback
 
 # tensorboard and file management
@@ -233,7 +246,7 @@ if SAVE:
 if DEBUG + 'train':
     print('training model')
 
-    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=1, batch_size=64,
+    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=8, batch_size=32,
               shuffle=True,
               callbacks=callbacks)
 
