@@ -1,0 +1,10 @@
+body {
+    font-family: Verdana,sans-serif;
+}
+
+.hr {
+    border-top: 2px dotted slategrey;
+    width: 60%;
+    margin-top: 25px;
+    margin-bottom: 50px;
+}

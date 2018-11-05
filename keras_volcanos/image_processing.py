@@ -8,10 +8,18 @@ import imageio
 
 
 class ImageHandler:
+    """
+    in order to function fully, call:
+        -load
+        -set_save
+        -imgs_to_frames
+    """
     def __init__(self):
         self.images = dict()
         self.imgs_as_frames = dict()
         self.save_dir = None
+        self.project_path = None
+        self.srcs_file = '../src/srcs.txt'
 
     def load(self, f: str) -> None:
         """
@@ -26,6 +34,7 @@ class ImageHandler:
         if not os.path.isdir(f'{self.save_dir}/animations'):
             os.mkdir(f'{self.save_dir}/animations')
         self.save_dir = self.save_dir + '/animations'
+        self.project_path = 'keras_volcanos' + self.save_dir[1:]  # removes initial '.' and provides a root project dir
 
     def animate(self, key: str) -> None:
         """
@@ -37,6 +46,28 @@ class ImageHandler:
             img = img.astype('uint8')
             imgs[i] = img
         imageio.mimsave(f'{self.save_dir}/{key}.gif', imgs, duration=0.2)
+        f = open(self.srcs_file, 'r')
+        lines = f.readlines()
+        f.close()
+        f = open(self.srcs_file, 'w')
+        start = -1
+        end = -1
+        for i, line in enumerate(lines):
+            if f'START::{self.project_path}\n' in line:
+                start = i
+            elif f'END::{self.project_path}\n' in line:
+                end = i
+        if (start != -1 and end != -1) and f'{self.project_path}/{key}.gif\n' not in lines[start:end]:
+            lines = lines[:start+1] + [f'{self.project_path}/{key}.gif\n'] + lines[start+1:]
+        elif start == -1 and end == -1:
+            lines.append(f'START::{self.project_path}\n')
+            lines.append(f'{self.project_path}/{key}.gif\n')
+            lines.append(f'END::{self.project_path}\n')
+        else:
+            f.close()
+            return
+        f.writelines(lines)
+        f.close()
 
     def show(self, key):
         for img in self.imgs_as_frames[key]:
@@ -89,9 +120,9 @@ if __name__ == '__main__':
     VERSION = 'v2.2_images'
     print('running image_processing main')
     img_processor = ImageHandler()
-    img_processor.l(f'./log_dir/{VERSION}/act_maps')
+    img_processor.load(f'./log_dir/{VERSION}/act_maps')
     img_processor.imgs_to_frames((3, 3))
     # img_processor.show('m2.0')
-    img_processor.set_save('./log_dir/{VERSION}')
+    img_processor.set_save(f'./log_dir/{VERSION}')
     for key in img_processor.imgs_as_frames.keys():
         img_processor.animate(key)

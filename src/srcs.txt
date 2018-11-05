@@ -1,0 +1,7 @@
+START::keras_volcanos/log_dir/v2.2_images/animations
+keras_volcanos/log_dir/v2.2_images/animations/m3.1.gif
+keras_volcanos/log_dir/v2.2_images/animations/m3.0.gif
+keras_volcanos/log_dir/v2.2_images/animations/m2.1.gif
+keras_volcanos/log_dir/v2.2_images/animations/m2.0.gif
+keras_volcanos/log_dir/v2.2_images/animations/m1.1.gif
+END::keras_volcanos/log_dir/v2.2_images/animations
