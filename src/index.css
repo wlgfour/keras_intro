@@ -7,22 +7,5 @@ img {
 }
 
 #accordion_master {
-    display: inline-block;
-}
-
-.hr {
-    border-top: 2px dotted slategrey;
-    width: 60%;
-    margin-top: 25px;
-    margin-bottom: 50px;
-}
-
-.ui-accordion-header {
-    background-color: dimgrey;
-    border: 1px solid black;
-    margin: 0;
-}
-
-.ui-accordion-header-active {
-    background-color: lightgrey;
+    width: 50%;
 }
