@@ -2,6 +2,7 @@
 .idea
 */data/*
 */log_dir/*/*/*/*
+*/log_dir/*/act_maps/*
 !*/log_dir/*/animations/*
 */tboard_log/*
 */save/*
