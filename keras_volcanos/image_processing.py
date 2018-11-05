@@ -20,6 +20,7 @@ class ImageHandler:
         self.save_dir = None
         self.project_path = None
         self.srcs_file = '../src/srcs.txt'
+        self.project = 'keras_volcanos'
 
     def load(self, f: str) -> None:
         """
@@ -29,12 +30,19 @@ class ImageHandler:
         for s in save_files:
             self.images[s.replace('.npy', '')] = np.load(f'{f}/{s}')
 
-    def set_save(self, directory: str):
+    def set_save(self, directory: str, project: str =None) -> None:
+        """
+        sets self.project if project is provided
+        sets save directory and creates an animations subdirectory
+        sets project root directory in order to find srcs/src.txt file
+        """
+        if project is not None:
+            self.project = project
         self.save_dir = directory
         if not os.path.isdir(f'{self.save_dir}/animations'):
             os.mkdir(f'{self.save_dir}/animations')
         self.save_dir = self.save_dir + '/animations'
-        self.project_path = 'keras_volcanos' + self.save_dir[1:]  # removes initial '.' and provides a root project dir
+        self.project_path = self.project + self.save_dir[1:]  # removes initial '.' and provides a root project dir
 
     def animate(self, key: str) -> None:
         """
@@ -76,16 +84,19 @@ class ImageHandler:
             plt.imshow(img)
             plt.show()
 
-    def imgs_to_frames(self, aspect_ratio: Tuple[int, int], filler: int = 1) -> None:
+    def imgs_to_frames(self, aspect_ratio: Tuple[int, int], filler: int = -1) -> None:
         """
         convert images to frames with aspect_ratio in (images-x, images-y)
         filler is the empty space value
+        if filler == -1, use max as the filler
         """
         # TODO: very inefficient to copy the np array every time it is change. init as large as it will be
         for key in self.images:
             # many images in each key
             self.imgs_as_frames[key] = list()
             for img in self.images[key]:
+                if filler == -1:  # set filler to the max of the image
+                    filler = img.max()
                 subframe_shape = np.shape(img)
                 empty_frame = np.ndarray((subframe_shape[0], subframe_shape[1]))  # will be filled and padded
                 empty_frame.fill(filler)
