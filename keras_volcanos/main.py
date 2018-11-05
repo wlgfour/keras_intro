@@ -48,7 +48,7 @@ class ActivationCollector(k.callbacks.Callback):
     def load(self, f):
         save_files = [lyr for lyr in os.listdir(f) if os.path.isfile(f'{f}/{lyr}')]
         for s in save_files:
-            self.images[s.replace('.npy', '')] = np.load(s)
+            self.images[s.replace('.npy', '')] = np.load(f'{f}/{s}')
 
     def animate_imgs(self, output_dir):
         pass  # TODO: animate self.images
