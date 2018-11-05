@@ -10,6 +10,7 @@ from typing import List
 
 print('done importing')
 
+
 # helpers
 print('defining helpers')
 
@@ -123,7 +124,7 @@ DEBUG = Debug(False, 'load_data', 'train')
 VISUALIZE = False
 SAVE = True
 LOAD = False
-MODEL_NUMBER = 'v2.2_images'
+MODEL_NUMBER = 'v2.1'
 BASE_DIR = f'./log_dir/{MODEL_NUMBER}'
 SAVE_FILE = f'{BASE_DIR}/volcano_classifier_{MODEL_NUMBER}.h5'
 ACT_SAVE = f'{BASE_DIR}/act_maps'
@@ -166,7 +167,26 @@ else:
     os.mkdir(ACT_SAVE)
 print('--done with file management--')
 
+
+# helpers
+print('defining helpers')
+
+
+def show_imgs(imgs, labels, rows, cols):
+    ax_imgs = [(plt.subplot(rows, cols, i),
+                imgs[i],
+                labels[i])
+               for i in range(1, rows * cols + 1)]
+    plt.tight_layout(pad=0.1)
+    for a, img, label in ax_imgs:
+        a.axis('off')
+        a.set_title(label)
+        a.imshow(img)
+    plt.show()
+
+
 # import data
+
 if DEBUG + 'load_data':
     print('reading data')
 
@@ -207,6 +227,7 @@ else:
 
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=(110, 110, 1), name='m1.0'))
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', name='m1.1'))
+
     model.add(MaxPool2D(pool_size=(2, 2)))  # (110, 110) -> (55, 55)
     model.add(Dropout(0.15))
 
@@ -231,6 +252,7 @@ else:
                   )
 model.summary()
 
+
 # callbacks
 print('defining callbacks')
 callbacks = list()
@@ -242,10 +264,11 @@ if SAVE:
     # save at checkpoints
     callbacks.append(k.callbacks.ModelCheckpoint(SAVE_FILE, monitor='val_loss', save_best_only=True, mode='min'))
 
-# train
-if DEBUG + 'train':
-    print('training model')
 
+# train
+print('training model')
+
+if DEBUG + 'train':
     model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=8, batch_size=32,
               shuffle=True,
               callbacks=callbacks)
