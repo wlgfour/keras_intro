@@ -19,22 +19,24 @@ $(document).ready(function() {
         }
         });
     srcs = srcs.split('\n');
-    let $div = [];
+    let $div = $('#accordion_master');  // will break down to every START::----END::
+    let $temp_div = $('<div class="collapse"></div>');  // will break down each file in start::--END::
     for(let i = srcs.length - 1; i >= 0; i --) {
         if(srcs[i].indexOf('START::') > -1) {  // start and stop are switched in meaning when array reversed
-            $div.append('<div class="hr"></div>');
-            $('body').append($div);
+            $div.append($temp_div);  // append all individual accordions to big accordion
+            $temp_div = $('<div class="collapse"></div>');  // prepare for next ::---:: section
         }else if(srcs[i].indexOf('END::') > -1) {
-            $div = $('<div class="section-head"></div>');
-            $div.append(`<h3>${srcs[i].split('::')[1]}</h3>`);
-        }else if(check_file_extension(srcs[i], valid_extensions)) {
-            let temp_div = $('<div></div>');
+            $div.append(`<h3>${srcs[i].split('::')[1]}</h3>`);  // add <h3> for head of START::
+        }else if(check_file_extension(srcs[i], valid_extensions)) {  // add <h3> and content dev to temp_div
             let file_name = srcs[i].split('/');
-            temp_div.append(`<h5>${file_name[file_name.length - 1]}</h5>`);
-            temp_div.append(`<img src="${srcs[i]}">`);
-            $div.append(temp_div);
+            $temp_div.append(`<h3>${file_name[file_name.length - 1]}</h3>`);
+            $temp_div.append(`<div><img src="${srcs[i]}"></div>`);
         }
     }
+    $('.collapse').accordion({
+        heightStyle: 'content',
+        collapsible: true
+    });
 });
 
 // &laquo;
