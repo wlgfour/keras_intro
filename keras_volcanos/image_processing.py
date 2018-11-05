@@ -49,6 +49,7 @@ class ImageHandler:
         f = open(self.srcs_file, 'r')
         lines = f.readlines()
         f.close()
+        # update srcs/srcs.txt
         f = open(self.srcs_file, 'w')
         start = -1
         end = -1
@@ -64,6 +65,7 @@ class ImageHandler:
             lines.append(f'{self.project_path}/{key}.gif\n')
             lines.append(f'END::{self.project_path}\n')
         else:
+            f.writelines(lines)
             f.close()
             return
         f.writelines(lines)
@@ -124,5 +126,5 @@ if __name__ == '__main__':
     img_processor.imgs_to_frames((3, 3))
     # img_processor.show('m2.0')
     img_processor.set_save(f'./log_dir/{VERSION}')
-    for key in img_processor.imgs_as_frames.keys():
-        img_processor.animate(key)
+    for img_key in img_processor.imgs_as_frames.keys():
+        img_processor.animate(img_key)
