@@ -3,12 +3,15 @@ import numpy as np
 from typing import Tuple
 import math
 import matplotlib.pyplot as plt
+import matplotlib.animation as a
+import imageio
 
 
 class ImageHandler:
     def __init__(self):
         self.images = dict()
         self.imgs_as_frames = dict()
+        self.save_dir = None
 
     def load(self, f: str) -> None:
         """
@@ -18,20 +21,29 @@ class ImageHandler:
         for s in save_files:
             self.images[s.replace('.npy', '')] = np.load(f'{f}/{s}')
 
-    def animate(self, key: str, save: str) -> None:
+    def set_save(self, directory: str):
+        self.save_dir = directory
+        if not os.path.isdir(f'{self.save_dir}/animations'):
+            os.mkdir(f'{self.save_dir}/animations')
+        self.save_dir = self.save_dir + '/animations'
+
+    def animate(self, key: str) -> None:
         """
         animates key from images_as_frames and saves to save directory
         """
-        pass  # TODO: animate self.imgs_as_frames
+        imgs = self.imgs_as_frames[key]
+        for i, img in enumerate(imgs):
+            img *= 255.0/img.max()
+            img = img.astype('uint8')
+            imgs[i] = img
+        imageio.mimsave(f'{self.save_dir}/{key}.gif', imgs, duration=0.2)
 
     def show(self, key):
-        # TODO: change show to get_fig
-        # TODO: annotate fig with frame number and key as title. remove axises
         for img in self.imgs_as_frames[key]:
             plt.imshow(img)
             plt.show()
 
-    def imgs_to_frames(self, aspect_ratio: Tuple[int, int], filler: int =1) -> None:
+    def imgs_to_frames(self, aspect_ratio: Tuple[int, int], filler: int = 1) -> None:
         """
         convert images to frames with aspect_ratio in (images-x, images-y)
         filler is the empty space value
@@ -74,8 +86,12 @@ class ImageHandler:
 
 
 if __name__ == '__main__':
+    VERSION = 'v2.2_images'
     print('running image_processing main')
     img_processor = ImageHandler()
-    img_processor.load('./log_dir/v2.2_images/act_maps_old')
+    img_processor.l(f'./log_dir/{VERSION}/act_maps')
     img_processor.imgs_to_frames((3, 3))
-    img_processor.show('m2.0')
+    # img_processor.show('m2.0')
+    img_processor.set_save('./log_dir/{VERSION}')
+    for key in img_processor.imgs_as_frames.keys():
+        img_processor.animate(key)
