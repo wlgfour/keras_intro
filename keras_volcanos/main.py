@@ -29,7 +29,7 @@ def show_imgs(imgs, labels, rows, cols):
 
 # globals
 print('defining globals')
-DEBUG = Debug(True, 'train')  # , 'load_data'
+DEBUG = Debug(False, 'load_data', 'train')
 VISUALIZE = False
 model_number = 'm2.3_helpers_test'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}')
@@ -123,7 +123,7 @@ if SAVE:
 print('training model')
 
 if DEBUG + 'train':
-    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=1, batch_size=32,
+    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=10, batch_size=32,
               shuffle=True,
               callbacks=callbacks)
 
