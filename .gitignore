@@ -6,3 +6,4 @@
 !*/log_dir/*/animations/*
 */tboard_log/*
 */save/*
+*/__pycache__/

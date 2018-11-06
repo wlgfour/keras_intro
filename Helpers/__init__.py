@@ -1,3 +1,3 @@
-from ImageHandler import ImageHandler
-from ActivationCollector import ActivationCollector
-from Debug import Debug
+from Helpers.ImageHandler import ImageHandler
+from Helpers.ActivationCollector import ActivationCollector
+from Helpers.Debug import Debug
