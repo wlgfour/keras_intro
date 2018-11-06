@@ -5,8 +5,7 @@ import tensorflow.keras as k
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import os
-from Helpers import Debug, ActivationCollector
+from Helpers import Debug, ActivationCollector, FileArchitecture, ImageHandler
 
 print('done importing')
 
@@ -32,68 +31,13 @@ def show_imgs(imgs, labels, rows, cols):
 print('defining globals')
 DEBUG = Debug(False, 'load_data', 'train')
 VISUALIZE = False
+model_number = 'm2.3_helpers_test'
+files = FileArchitecture(model_number, f'./log_dir/{model_number}')
 SAVE = True
-LOAD = False
-MODEL_NUMBER = 'v2.1'
-BASE_DIR = f'./log_dir/{MODEL_NUMBER}'
-SAVE_FILE = f'{BASE_DIR}/volcano_classifier_{MODEL_NUMBER}.h5'
-ACT_SAVE = f'{BASE_DIR}/act_maps'
-ACT_LOAD = False
 act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'])
-act_collector.set_save(ACT_SAVE, True)
-# callback instance of k.callbacks.Callback
+act_collector.set_save(files.act_save, True)
 
-# tensorboard and file management
-print('--starting file management--')
-TBOARD_DIR = f'{BASE_DIR}/tboard_{MODEL_NUMBER}'
-TBOARD_CUR_DIR = f'{TBOARD_DIR}/current'
-TBOARD_HIST_DIR = f'{TBOARD_DIR}/history'
-if not os.path.isdir(BASE_DIR):
-    print(f'    making model {MODEL_NUMBER} log directory')
-    os.mkdir(BASE_DIR)
-if not os.path.isdir(TBOARD_DIR):
-    print('    making tensorboard log directory')
-    os.mkdir(TBOARD_DIR)
-# move past logfiles to history directory
-if not os.path.isdir(TBOARD_HIST_DIR):
-    print('    making tensorboard history directory')
-    os.mkdir(TBOARD_HIST_DIR)
-if not os.path.isdir(TBOARD_CUR_DIR):
-    print('    making tensorboard current directory')
-    os.mkdir(TBOARD_CUR_DIR)
-print('    moving tensorboard log files from current directory to history')
-log_files = [f for f in os.listdir(TBOARD_CUR_DIR) if os.path.isfile(f'{TBOARD_CUR_DIR}/{f}')]
-for file in log_files:
-    os.rename(f'{TBOARD_CUR_DIR}/{file}', f'{TBOARD_HIST_DIR}/{file}')
-
-# check for save file
-if os.path.exists(SAVE_FILE):
-    print('    found save file. setting LOAD to True')
-    LOAD = True
-if os.path.isdir(ACT_SAVE):
-    print('    found act map save file. setting ACT_LOAD to true')
-    act_collector.load(ACT_SAVE)
-else:
-    os.mkdir(ACT_SAVE)
-print('--done with file management--')
-
-
-# helpers
-print('defining helpers')
-
-
-def show_imgs(imgs, labels, rows, cols):
-    ax_imgs = [(plt.subplot(rows, cols, i),
-                imgs[i],
-                labels[i])
-               for i in range(1, rows * cols + 1)]
-    plt.tight_layout(pad=0.1)
-    for a, img, label in ax_imgs:
-        a.axis('off')
-        a.set_title(label)
-        a.imshow(img)
-    plt.show()
-
+files.construct_file_tree()
 
 # import data
 
@@ -128,9 +72,9 @@ else:
 
 # model
 print('initializing model')
-if LOAD:
+if files.load:
     print('    loading model and act imgs')
-    model = k.models.load_model(SAVE_FILE)
+    model = k.models.load_model(files.save_file)
 else:
     print('    building model')
     model = k.Sequential()
@@ -166,27 +110,30 @@ model.summary()
 # callbacks
 print('defining callbacks')
 callbacks = list()
-callbacks.append(k.callbacks.TensorBoard(log_dir=TBOARD_CUR_DIR, histogram_freq=1, batch_size=32,
+callbacks.append(k.callbacks.TensorBoard(log_dir=files.tboard_cur_dir, histogram_freq=1, batch_size=32,
                                          write_graph=True, write_grads=True, write_images=True))
 callbacks.append(act_collector)
 
 if SAVE:
     # save at checkpoints
-    callbacks.append(k.callbacks.ModelCheckpoint(SAVE_FILE, monitor='val_loss', save_best_only=True, mode='min'))
+    callbacks.append(k.callbacks.ModelCheckpoint(files.save_file, monitor='val_loss', save_best_only=True, mode='min'))
 
 
 # train
 print('training model')
 
 if DEBUG + 'train':
-    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=8, batch_size=32,
+    model.fit(train_imgs, train_labels, validation_data=(test_imgs, test_labels), epochs=1, batch_size=32,
               shuffle=True,
               callbacks=callbacks)
 
     # save
     if SAVE:
         print('saving model and activation maps')
-        act_collector.save(ACT_SAVE)
-        model.save(SAVE_FILE)
+        act_collector.save(files.act_save)
+        model.save(files.save_file)
+        ImageHandler(files.act_load, (3, 3), -1, files.base_dir)
+
+
 else:
     print('not training because of debug setting')

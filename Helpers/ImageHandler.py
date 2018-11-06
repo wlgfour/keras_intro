@@ -5,6 +5,7 @@ import math
 import matplotlib.pyplot as plt
 import imageio
 
+
 class ImageHandler:
     """
     in order to function fully, call:
@@ -13,13 +14,15 @@ class ImageHandler:
         -imgs_to_frames
     """
     def __init__(self, load_file: str =None, aspect_ratio: Tuple[int, int] =None, filler: int =None,
-                 save_dir: str =None, project: str =None):
+                 save_dir: str =None, project: str =None, init_func_calls: bool =True):
         """
-        :param load_file: if specified, will load .npy files into dict
+        :param load_file: if specified, will load .npy files into dict from the dir load_file
         :param aspect_ratio: will convert files to frames
             :param filler: will set filler as non-default value if specified
         :param save_dir: if specified, set_save(save_dir)
             :param project: will change to non-default if specified
+        :param init_func_calls: if true, it will call as many functions as possible, possibly all during init
+                - only init when you want to animate if True
         """
         self.images = dict()  # images after begin loaded in
         self.imgs_as_frames = dict()  # dict of imgs as frames with channels side by side
@@ -27,18 +30,26 @@ class ImageHandler:
         self.project_path = None  # used for storing location of animations in src/srcs.txt
         self.srcs_file = '../src/srcs.txt'  # file for sources. should work for any /project/foo.py
         self.project = 'keras_volcanos'  # used for constructing file path. Use name as appears in directory name
-        if load_file is not None:
-            self.load(load_file)
-            if aspect_ratio is not None:
-                if filler is not None:
-                    self.imgs_to_frames(aspect_ratio, filler)
+        if init_func_calls:
+            print('ImageHandler calling functions which have enough data to call')
+            if load_file is not None:
+                print('    loading')
+                self.load(load_file)
+                if aspect_ratio is not None:
+                    print('    converting images to frames')
+                    if filler is not None:
+                        self.imgs_to_frames(aspect_ratio, filler)
+                    else:
+                        self.imgs_to_frames(aspect_ratio)
+            if save_dir is not None:
+                print('    calling set_save')
+                if project is not None:
+                    self.set_save(save_dir, project)
                 else:
-                    self.imgs_to_frames(aspect_ratio)
-        if save_dir is not None:
-            if project is not None:
-                self.set_save(save_dir, project)
-            else:
-                self.set_save(save_dir)
+                    self.set_save(save_dir)
+            if len(self.images) > 0:
+                print('    calling animate_all')
+                self.animate_all()
 
     def animate_all(self):
         for key in self.imgs_as_frames.keys():
