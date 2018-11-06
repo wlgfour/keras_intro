@@ -6,3 +6,11 @@ keras_volcanos/log_dir/v2.2_images/animations/m2.0.gif
 keras_volcanos/log_dir/v2.2_images/animations/m1.1.gif
 keras_volcanos/log_dir/v2.2_images/animations/m1.0.gif
 END::keras_volcanos/log_dir/v2.2_images/animations
+START::keras_volcanos//log_dir/m2.3_helpers_test/animations
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m3.1.gif
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m3.0.gif
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m2.1.gif
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m2.0.gif
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m1.1.gif
+keras_volcanos//log_dir/m2.3_helpers_test/animations/m1.0.gif
+END::keras_volcanos//log_dir/m2.3_helpers_test/animations

@@ -29,7 +29,7 @@ def show_imgs(imgs, labels, rows, cols):
 
 # globals
 print('defining globals')
-DEBUG = Debug(False, 'load_data', 'train')
+DEBUG = Debug(True, 'train')  # , 'load_data'
 VISUALIZE = False
 model_number = 'm2.3_helpers_test'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}')
@@ -132,8 +132,9 @@ if DEBUG + 'train':
         print('saving model and activation maps')
         act_collector.save(files.act_save)
         model.save(files.save_file)
-        ImageHandler(files.act_load, (3, 3), -1, files.base_dir)
+        ImageHandler(files.act_save, (3, 3), -1, files.base_dir)
 
 
 else:
     print('not training because of debug setting')
+
