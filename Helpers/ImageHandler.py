@@ -5,7 +5,6 @@ import math
 import matplotlib.pyplot as plt
 import imageio
 
-
 class ImageHandler:
     """
     in order to function fully, call:
@@ -153,15 +152,3 @@ class ImageHandler:
                     else:
                         cols = np.append(cols, row, axis=0)
                 self.imgs_as_frames[key].append(cols)
-
-
-if __name__ == '__main__':
-    VERSION = 'v2.2_images'
-    print('running image_processing main')
-    img_processor = ImageHandler()
-    img_processor.load(f'./log_dir/{VERSION}/act_maps')
-    img_processor.imgs_to_frames((3, 3))
-    # img_processor.show('m2.0')
-    img_processor.set_save(f'./log_dir/{VERSION}')
-    for img_key in img_processor.imgs_as_frames.keys():
-        img_processor.animate(img_key)
