@@ -11,17 +11,20 @@ class FileArchitecture:
         - called if self.model_number and self.base_dir are given in __init__ call
     construct_file_tree()
         - must have called construct_sub_dirs() in order to call.
+    to call:
+        - construct_sub_dirs() if model_number and base_dir are not given in init
+        - construct_file_tree()
     """
     def __init__(self, model_number: str =None, base_dir: str =None, name: str ='model'):
         self.model_number = model_number  # model model number. All logs will be stored by model number
         self.base_dir = base_dir  # base dir for all logging ex: f'./log_dir/{MODEL_NUMBER}'
         self.name = name  # not necessary. Only used in save file for model weights
         self.save_file = None  # file to save model weights in
-        self.act_save = None  # directory to save activation weights in
         self.tboard_dir = None  # directory to save tensorboard log files in
         self.tboard_cur_dir = None  # subdirectory of tboard_dir to store current log file
         self.tboard_hist_dir = None  # see above. past log files. must be separated for tensorboard --logdir to work
         self.load = False  # bool of whether to load model
+        self.act_save = None  # directory to save activation weights in
         self.act_load = False  # bool of whether to load activation maps
         if self.model_number is not None and self.base_dir is not None:
             self.construct_sub_dirs()

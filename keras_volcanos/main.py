@@ -71,7 +71,10 @@ else:
     test_labels = test_imgs = train_labels = train_imgs = None
 
 # model
-print('initializing model')
+print('initializing model and/or loading')
+if files.act_load:
+    print('    found activation maps. loading into activation_collector')
+    act_collector.load(files.act_save)
 if files.load:
     print('    loading model and act imgs')
     model = k.models.load_model(files.save_file)

@@ -8,10 +8,16 @@ class ActivationCollector(k.callbacks.Callback):
     """
     add to callbacks in model.fit to record activation maps of data after every batch in
     self.images['layer_name']: List[image]
+    to call before functionality:
+        - set_data()
+        - set_save() if save_dir is not specified
+        - save() after training
     """
     def __init__(self, layer_names: List[str], data: np.ndarray =None, counter_mod: int =32, save_dir: str =None,
                  every_epoch: bool =True):
         """
+        
+        :param save_dir: if specified, there is no need to call set_save
         :param layer_names: names of layers to get. incorrect names will be left out
         :param data: image to get maps from
             # TODO: make it possible to save multiple images. Make compatible with ImageHandler.animate()
@@ -58,7 +64,7 @@ class ActivationCollector(k.callbacks.Callback):
         loads .npy files in a directory into self.images[key] to be appended to
             key is most likely a layer name
         """
-        save_files = [lyr for lyr in os.listdir(f) if os.path.isfile(f'{f}/{lyr}')]
+        save_files = [layr for layr in os.listdir(f) if os.path.isfile(f'{f}/{layr}')]
         for s in save_files:
             self.images[s.replace('.npy', '')] = np.load(f'{f}/{s}')
 

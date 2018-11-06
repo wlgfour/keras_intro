@@ -15,6 +15,7 @@ class ImageHandler:
     """
     def __init__(self, load_file: str =None, aspect_ratio: Tuple[int, int] =None, filler: int =None,
                  save_dir: str =None, project: str =None):
+        print('WARNING: Use the ImageHandler in Helpers. Currently using a deprecated file')
         """
         :param load_file: if specified, will load .npy files into dict
         :param aspect_ratio: will convert files to frames
