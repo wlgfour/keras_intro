@@ -25,8 +25,9 @@ VISUALIZE = False
 VISUALIZE_TRAIN = False
 SAVE = True
 CHKPT_SAVE = True
+TRAIN = True
 
-model_number = 'v1.0'
+model_number = 'v1.1'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
 files.construct_file_tree()
 act_collector = ActivationCollector(['m1.0', 'm1.1'], save_dir=files.act_save)
@@ -56,8 +57,8 @@ train_data = train_data.reshape((-1, 96, 96, 1))
 train_labels = pnts[:, 1:]
 train_labels = train_labels * (1 / np.shape(data)[1])  # scale so scaled * image_width = original position
 act_collector.set_data(train_data[1:2])
-print(f'images -- shape: {np.shape(train_data)}  max: {train_data.max()}  min: {train_data.min()}')
-print(f'labels -- shape: {np.shape(train_labels)}  max: {train_labels.max()}  min: {train_labels.min()}')
+print(f'    images -- shape: {np.shape(train_data)}  max: {train_data.max()}  min: {train_data.min()}')
+print(f'    labels -- shape: {np.shape(train_labels)}  max: {train_labels.max()}  min: {train_labels.min()}')
 
 if VISUALIZE_TRAIN:  # visualize training data to verify that scaling works
     for i in range(10):
@@ -70,6 +71,7 @@ if files.load:
     print('    found save file: loading model')
     model = k.models.load_model(files.save_file)
 else:
+    # TODO: data augmentation layer
     print('    building model')
     model = k.Sequential()
     # (96, 96)
@@ -89,20 +91,22 @@ model.summary()
 # callbacks
 print('defining callbacks')
 callbacks = list()
-# callbacks.append(k.callbacks.TensorBoard(logdir=files.tboard_cur_dir, histogram_freq=1, batch_size=32,
-#                                          write_graph=True, write_grads=True, write_images=True))
-# callbacks.append(act_collector)
+callbacks.append(k.callbacks.TensorBoard(log_dir=files.tboard_cur_dir, histogram_freq=1, batch_size=32,
+                                         write_graph=True, write_grads=True, write_images=True))
+callbacks.append(act_collector)
 if CHKPT_SAVE:
     # checkpoint saves
     callbacks.append(k.callbacks.ModelCheckpoint(files.save_file, monitor='val_loss', save_best_only=True, mode='min'))
 
 # train model
-print('entering training phase')
-model.fit(train_data, train_labels, validation_split=0.2, epochs=50, batch_size=16,
-          shuffle=True, callbacks=callbacks)
+if TRAIN:
+    print('entering training phase')
+    model.fit(train_data, train_labels, validation_split=0.2, epochs=10, batch_size=16,
+              shuffle=True, callbacks=callbacks)
 
 if SAVE:
     print('saving model and activation maps')
-    act_collector.save(files.act_save)
-    model.save(files.save_file)
+    if TRAIN:
+        act_collector.save(files.act_save)
+        model.save(files.save_file)
     ImageHandler(files.act_save, (3, 3), -1, files.base_dir)
