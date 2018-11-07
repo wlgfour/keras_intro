@@ -18,25 +18,32 @@ function stop_video(stream) {
     video.src = window.URL.revokeObjectURL(stream);
 }
 
-function capture() {
-    const canvas = document.createElement('canvas');
-    document.querySelector('body').appendChild(canvas);
+function capture(width, height) {
+    const canvas = document.querySelector('#grid_canvas');
 
     const video_el = document.querySelector('#stream video');
-    canvas.width = video_el.width;
-    canvas.height = video_el.height;
+    canvas.width = width;
+    canvas.height = height;
 
-    canvas.getContext('2d').drawImage(video_el, 0, 0, video_el.width, video_el.height);
-    const snapshot = canvas.toDataURL('img/png');
-    canvas.parentNode.removeChild(canvas);
+    // TODO: priority: high -- crop image rather than scale. webcam gets image not square
+    let context = canvas.getContext('2d');
+    context.drawImage(video_el, 0, 0, width, height);
 
-    document.querySelector('#grid').setAttribute('src', snapshot);
+    let image = context.getImageData(0, 0, width, height);
+    let avg = 0;
+    for(let i = 0; i < image.data.length; i+=4) {
+        avg = (image.data[i] + image.data[i + 1] + image.data[i + 2]) / 3;
+        image.data[i] = avg;
+        image.data[i + 1] = avg;
+        image.data[i + 2] = avg;
+        image.data[i + 3] = 255;
+    }
+    context.putImageData(image, 0, 0);
 }
 
 function init_video() {
     // begin video streaming
     // reference: https://www.jonathan-petitcolas.com/2016/08/24/taking-picture-from-webcam-using-canvas.html
-    console.log('hello?')
     getUserMedia({
         video: true,
         audio: false,
@@ -46,8 +53,8 @@ function init_video() {
     }, stream => {
         start_video(stream);
         document.getElementById('capture').addEventListener('click', () => {
-            capture();
-            stop_video(stream);
+            capture(96, 96);
+            // stop_video(stream);
         })
     }, err => console.error(err));
 }
