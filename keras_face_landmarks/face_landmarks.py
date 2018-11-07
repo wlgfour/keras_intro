@@ -3,7 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow.keras as k
 from tensorflow.keras.layers import Conv2D, MaxPool2D, Dropout, Flatten, Dense
-from Helpers import ActivationCollector, Debug, FileArchitecture, ImageHandler
+import tensorflowjs as tfjs
+from Helpers import ActivationCollector, FileArchitecture, ImageHandler
 
 
 # helpers
@@ -13,16 +14,17 @@ print('defining helpers')
 def visualize(images, labels, number):
     for inner_i in range(number):
         plt.imshow(images[inner_i])
-        x = labels[inner_i][1::2]
-        y = labels[inner_i][2::2]
-        plt.scatter(x, y)
+        x = labels[inner_i][0::2]
+        y = labels[inner_i][1::2]
+        plt.scatter(x, y, c='r')
         plt.show()
 
 
 # globals
 print('defining globals')
 VISUALIZE = False
-VISUALIZE_TRAIN = False
+VISUALIZE_TRAIN = True
+VISUALIZE_PREDICTIONS = True
 SAVE = True
 CHKPT_SAVE = True
 TRAIN = False
@@ -63,8 +65,7 @@ print(f'    images -- shape: {np.shape(train_data)}  max: {train_data.max()}  mi
 print(f'    labels -- shape: {np.shape(train_labels)}  max: {train_labels.max()}  min: {train_labels.min()}')
 
 if VISUALIZE_TRAIN:  # visualize training data to verify that scaling works
-    for i in range(10):
-        visualize(train_data[:, :, 0], train_labels * np.shape(data)[1], 10)
+    visualize(train_data[:, :, :, 0], train_labels * np.shape(data)[1], 2)
 
 
 # model
@@ -115,6 +116,13 @@ if TRAIN:
     print('entering training phase')
     model.fit(train_data, train_labels, validation_split=0.2, epochs=5, batch_size=16,
               shuffle=True, callbacks=callbacks)
+# predictions
+if PREDICT:
+    print('predicting')
+    predict_labels = model.predict(train_data, verbose=1)
+    predict_labels = predict_labels * (np.shape(data)[1])
+    if VISUALIZE_PREDICTIONS:
+        visualize(train_data[:, :, :, 0], predict_labels, 2)
 
 if SAVE:
     print('saving model and activation maps')
