@@ -6,6 +6,17 @@ img {
     width: 100%;
 }
 
+img[src='#'] {
+    display: none;
+}
+
+.hr {
+    width: 60%;
+    border: 1px dotted grey;
+    margin-top: 35px;
+    margin-bottom: 25px;
+}
+
 #accordion_master {
     width: 50%;
 }

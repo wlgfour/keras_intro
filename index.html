@@ -6,7 +6,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script src="src/getUserMedia.min.js"></script>
-    <script src="src/index.js"></script>
+    <script src="src/main.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
     <link rel="stylesheet" href="src/index.css">
 </head>
@@ -14,14 +14,34 @@
     <h1>keras_intro</h1>
     <p>
         Here you can see the activation maps for a specific image at different layers throughout training.
-        Currently models are limited to the model
-        <a href="https://github.com/wlgfour/keras_intro/tree/master/keras_volcanos">keras_volcanoes</a> which predicts
-        whether an image is a volcano or not.
-        Data can be found on <a href="https://www.kaggle.com/fmena14/volcanoesvenus">kaggle</a>.
-        code for all models can be found on <a href="https://github.com/wlgfour/keras_intro">GitHub</a>.
-
     </p>
+    <p>Currently models are limited to the model</p>
+    <ul>
+        <li>
+            <a href="https://github.com/wlgfour/keras_intro/tree/master/keras_volcanos">keras_volcanoes</a> which
+            predicts whether an image is a volcano or not.
+            Data can be found on <a href="https://www.kaggle.com/fmena14/volcanoesvenus">kaggle</a>.
+        </li>
+        <li>
+            <a href="https://github.com/wlgfour/keras_intro/tree/master/keras_face_landmarks">keras_face_landmarks</a>
+            which predicts 15 points as x-y pairs representing points on a given face (96 px X 96 px greyscale) such as
+            left-inner-eye or top-middle-mouth. Data can be found on
+            <a href="https://www.kaggle.com/drgilermo/face-images-with-marked-landmark-points">kaggle</a>.
+        </li>
+    </ul>
+    <p>code for all models can be found on <a href="https://github.com/wlgfour/keras_intro">GitHub</a>.</p>
     <div class="hr"></div>
     <div id="accordion_master" class="collapse"></div>
+
+    <!--begin live predictions-->
+    <div class="hr"></div>
+
+    <div class="wrapper">
+        <button id="init_video_btn" onclick="init_video()">Initialize video feed</button>
+        <button id="capture">Capture</button>
+        <div id="stream"></div>
+        <img id="grid" src="#">
+
+    </div>
 </body>
 </html>
