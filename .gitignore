@@ -4,6 +4,7 @@
 */log_dir/*/*/*/*
 */log_dir/*/*/*
 !*/log_dir/*/animations/*
+!*/log_dir/*/*_js/*
 */tboard_log/*
 */save/*
 */__pycache__/

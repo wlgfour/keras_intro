@@ -25,10 +25,11 @@ print('defining globals')
 VISUALIZE = False
 VISUALIZE_TRAIN = True
 VISUALIZE_PREDICTIONS = True
-SAVE = True
-CHKPT_SAVE = True
+# execute blocks
 TRAIN = False
-PREDICT = True
+CHKPT_SAVE = True
+SAVE = True
+PREDICT = False
 
 model_number = 'v1.1'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
@@ -125,8 +126,9 @@ if PREDICT:
         visualize(train_data[:, :, :, 0], predict_labels, 2)
 
 if SAVE:
-    print('saving model and activation maps')
+    print('saving model, activation maps, and javascript model')
     if TRAIN:
         act_collector.save(files.act_save)
         model.save(files.save_file)
     ImageHandler(files.act_save, (3, 3), -1, files.base_dir, 'keras_face_landmarks')
+    tfjs.converters.save_keras_model(model, files.js_dir)

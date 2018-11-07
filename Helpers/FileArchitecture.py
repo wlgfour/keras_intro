@@ -19,6 +19,7 @@ class FileArchitecture:
         self.model_number = model_number  # model model number. All logs will be stored by model number
         self.base_dir = base_dir  # base dir for all logging ex: f'./log_dir/{MODEL_NUMBER}'
         self.name = name  # not necessary. Only used in save file for model weights
+        self.js_dir = None
         self.save_file = None  # file to save model weights in
         self.tboard_dir = None  # directory to save tensorboard log files in
         self.tboard_cur_dir = None  # subdirectory of tboard_dir to store current log file
@@ -31,6 +32,7 @@ class FileArchitecture:
 
     def construct_sub_dirs(self) -> None:
         self.save_file = f'{self.base_dir}/{self.name}_{self.model_number}.h5'
+        self.js_dir = f'{self.base_dir}/{self.name}_{self.model_number}_js'
         self.act_save = f'{self.base_dir}/act_maps'
         self.tboard_dir = f'{self.base_dir}/tboard_{self.model_number}'
         self.tboard_cur_dir = f'{self.tboard_dir}/current'
