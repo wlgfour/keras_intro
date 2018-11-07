@@ -1,3 +1,6 @@
+// WARNING: this is bad code. Read at your own risk
+
+
 let model;
 
 class Img {
@@ -31,18 +34,13 @@ function stop_video(stream) {
 
 function capture() {
     const canvas = document.querySelector('#grid_canvas');
-    const canvas_large = document.querySelector('#canvas_large');
 
     const video_el = document.querySelector('#stream video');
-    canvas_large.width = 680;
-    canvas_large.height = 680;
     canvas.width = 96;
     canvas.height = 96;
 
     // TODO: priority: high -- crop image rather than scale. webcam gets image not square
     let context = canvas.getContext('2d');
-    let context_large = canvas_large.getContext('2d');
-    context_large.drawImage(video_el, 0, 0, 680, 680);
     context.drawImage(video_el, 0, 0, 96, 96);
 
     let image = context.getImageData(0, 0, 96, 96);
@@ -60,7 +58,7 @@ function capture() {
 function init_video() {
     // begin video streaming
     // reference: https://www.jonathan-petitcolas.com/2016/08/24/taking-picture-from-webcam-using-canvas.html
-    btn = document.getElementById('init_video_btn');
+    let btn = document.getElementById('init_video_btn');
     btn.parentNode.removeChild(btn);
     getUserMedia({
         video: true,
@@ -115,16 +113,20 @@ async function make_prediction_promise() {
 }
 
 function make_prediction() {
-
     const canvas_large = document.querySelector('#canvas_large');
-    let context = canvas_large.getContext('2d');
-    context.fillStyle = 'rgb(200,0,0)'
+    let context_large = canvas_large.getContext('2d');
+    canvas_large.width = 680;
+    canvas_large.height = 680;
+    context_large.fillStyle = 'rgb(200,0,0)';
+    capture();
+    const video_el = document.querySelector('#stream video');
+    context_large.drawImage(video_el, 0, 0, 680, 680);
     make_prediction_promise().then(function(values) {
         for(let i = 0; i < values.length; i+=2) {
-            console.log(values[i], values[i + 1]);
-            context.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
+            // console.log(values[i], values[i + 1]);
+            // context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
+            context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
         }
-        capture();
         make_prediction();
     });
 }

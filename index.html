@@ -40,7 +40,10 @@
     <div class="wrapper">
         <button id="init_video_btn" onclick="init_video()">Initialize video feed</button>
         <button id="capture">Capture</button>
-        <button onclick="make_prediction()">Make Prediction</button>
+        <button id="make_pred" onclick="make_prediction();
+                                        let a = document.getElementById('make_pred'); a.parentNode.removeChild(a);">
+            Make Prediction
+        </button>
         <button id="load_model"
                 onclick="load_model('keras_face_landmarks/log_dir/v1.1/face_keypoints_v1.1_js/model.json')">
             load model
