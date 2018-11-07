@@ -34,12 +34,12 @@
     <div class="hr"></div>
     <div id="accordion_master" class="collapse"></div>
 
-    <!--begin live predictions-->
+    <!--begin live predictions this is bad-->
     <div class="hr"></div>
 
     <div class="wrapper">
         <button id="init_video_btn" onclick="init_video()">Initialize video feed</button>
-        <button id="capture">Capture</button>
+        <button id="capture" style="display: none;">Capture</button>
         <button id="make_pred" onclick="make_prediction();
                                         let a = document.getElementById('make_pred'); a.parentNode.removeChild(a);">
             Make Prediction
@@ -48,9 +48,9 @@
                 onclick="load_model('keras_face_landmarks/log_dir/v1.1/face_keypoints_v1.1_js/model.json')">
             load model
         </button>
-        <div id="stream"></div>
+        <div id="stream" style="display: none"></div>
         <img id="grid" src="#">
-        <canvas id="grid_canvas"></canvas>
+        <canvas id="grid_canvas" style="display: none;"></canvas>
         <canvas id="canvas_large"></canvas>
 
     </div>

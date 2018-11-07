@@ -2,6 +2,7 @@
 
 
 let model;
+let points = Array(30);
 
 class Img {
     constructor(image, max) {
@@ -120,15 +121,16 @@ function make_prediction() {
     context_large.fillStyle = 'rgb(200,0,0)';
     capture();
     const video_el = document.querySelector('#stream video');
-    context_large.drawImage(video_el, 0, 0, 680, 680);
     make_prediction_promise().then(function(values) {
-        for(let i = 0; i < values.length; i+=2) {
-            // console.log(values[i], values[i + 1]);
-            // context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
-            context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
-        }
+        points = values;
         make_prediction();
     });
+    context_large.drawImage(video_el, 0, 0, 680, 680);
+    for(let i = 0; i < points.length; i+=2) {
+        // context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
+        // console.log(values[i], values[i + 1]);
+        context_large.fillRect(points[i] * 680, points[i + 1] * 680, 5, 5);
+    }
 }
 
 async function load_model(path) {
