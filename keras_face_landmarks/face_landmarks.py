@@ -25,12 +25,14 @@ VISUALIZE = False
 VISUALIZE_TRAIN = False
 SAVE = True
 CHKPT_SAVE = True
-TRAIN = True
+TRAIN = False
+PREDICT = True
 
 model_number = 'v1.1'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
 files.construct_file_tree()
-act_collector = ActivationCollector(['m1.0', 'm1.1'], save_dir=files.act_save)
+act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'],
+                                    save_dir=files.act_save, counter_mod=16)
 
 # load
 print('loading data')
@@ -77,9 +79,19 @@ else:
     # (96, 96)
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=(96, 96, 1), name='m1.0'))
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', name='m1.1'))
+    model.add(MaxPool2D((2, 2)))  # (96, 96) -> (48, 48)
+    model.add(Dropout(0.15))
+
+    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', name='m2.0'))
+    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', name='m2.1'))
+    model.add(MaxPool2D((2, 2)))  # (48, 48) -> (24, 24)
+
+    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', name='m3.0'))
+    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', name='m3.1'))
+    model.add(MaxPool2D((2, 2)))  # (24, 24) -> (12, 12)
 
     model.add(Flatten())
-    model.add(Dense(1024, activation='relu'))
+    model.add(Dense(512, activation='relu'))
     model.add(Dense(30, activation=None))
 
     model.compile(optimizer='adam',
@@ -101,7 +113,7 @@ if CHKPT_SAVE:
 # train model
 if TRAIN:
     print('entering training phase')
-    model.fit(train_data, train_labels, validation_split=0.2, epochs=10, batch_size=16,
+    model.fit(train_data, train_labels, validation_split=0.2, epochs=5, batch_size=16,
               shuffle=True, callbacks=callbacks)
 
 if SAVE:
@@ -109,4 +121,4 @@ if SAVE:
     if TRAIN:
         act_collector.save(files.act_save)
         model.save(files.save_file)
-    ImageHandler(files.act_save, (3, 3), -1, files.base_dir)
+    ImageHandler(files.act_save, (3, 3), -1, files.base_dir, 'keras_face_landmarks')

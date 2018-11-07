@@ -14,7 +14,7 @@ class ImageHandler:
         -imgs_to_frames
     """
     def __init__(self, load_file: str =None, aspect_ratio: Tuple[int, int] =None, filler: int =None,
-                 save_dir: str =None, project: str =None, init_func_calls: bool =True):
+                 save_dir: str =None, project: str ='keras_volcanos', init_func_calls: bool =True):
         """
         :param load_file: if specified, will load .npy files into dict from the dir load_file
         :param aspect_ratio: will convert files to frames
@@ -29,7 +29,7 @@ class ImageHandler:
         self.save_dir = None  # where to save animations
         self.project_path = None  # used for storing location of animations in src/srcs.txt
         self.srcs_file = '../src/srcs.txt'  # file for sources. should work for any /project/foo.py
-        self.project = 'keras_volcanos'  # used for constructing file path. Use name as appears in directory name
+        self.project = project  # used for constructing file path. Use name as appears in directory name
         if init_func_calls:
             print('ImageHandler calling functions which have enough data to call')
             if load_file is not None:
