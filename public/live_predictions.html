@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Predictions</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.13.3/dist/tf.min.js"></script>
+    <script src="../src/getUserMedia.min.js"></script>
+    <script src="../src/live_pred.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <link rel="stylesheet" href="../src/index.css">
+</head>
+<body>
+<!--begin live predictions this is bad-->
+    <h1>Live Predictions From Facial Keypoints Models</h1>
+    <div class="hr"></div>
+
+    <div class="wrapper">
+        <div id="model_form">
+            <label for="model_input">Model number: </label>
+            <input id="model_input" name="model_input" type="text"><br>
+            <button onclick="let v = $('#model_input').val();
+                   load_model('../keras_face_landmarks/log_dir/'+v+'/face_keypoints_'+v+'_js/model.json');
+                   $('#model_form').hide();"> Submit
+            </button>
+        </div>
+        <button id="make_pred" onclick="make_prediction();
+                                        let a = document.getElementById('make_pred'); a.parentNode.removeChild(a);">
+            Begin Predictions
+        </button>
+        <button id="init_video_btn" onclick="init_video()">Initialize video feed</button>
+        <button id="capture" style="display: none;">Capture</button>
+        <div id="stream" style="display: none"></div>
+        <img id="grid" src="#">
+        <canvas id="grid_canvas" style="display: none;"></canvas>
+        <canvas id="canvas_large"></canvas>
+    </div>
+</body>
+</html>
