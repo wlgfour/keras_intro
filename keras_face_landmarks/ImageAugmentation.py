@@ -10,7 +10,7 @@ Goal:
     2) operations 
         a) scaling
         b) rotations of 90 degrees (if image is square)
-        c) shift left and right -- avoid noise by scaling and cropping 
+      **c) shift left and right -- avoid noise by scaling and cropping 
 Challenges:
     1) labeling the correct points. If the face is flipped horizontally, the left eye will correspond to the right eye
     2) matrix operations
@@ -38,38 +38,40 @@ train_labels = pnts[:, 1:]
 train_labels = train_labels * (1 / np.shape(data)[1])  # scale so scaled * image_width = original position
 
 
-def horizontal_flip(img, labels, width=96, num_pairs=15):
+def rot_90(img_tensor, labels_tensor, num_pairs=15):
     """
-    flips a square image with one channel across vertical
-    :param labels: tensor for labels input
-    :param img: tensor for images input
+    rotates a batch of square images with one channel 90' counter clockwise
+    :param labels_tensor: tensor for labels batch input
+    :param img_tensor: tensor for images batch input
     :param width: width of image
     :param num_pairs: number of x-y pairs
-    :return: tensors: img, [x1, y1, ..., xn, yn]
+    :return: tensors: img: shape=(96, 96, 1), labels: [x1, y1, ..., xn, yn]
     """
     # image_flip
-    img_ = tf.reshape(img, (width, width))
-    flip_img_ = tf.transpose(img_)
-    flip_img = tf.reshape(flip_img_, (width, width, 1))
+    flip_img = tf.image.rot90(img_tensor)
     # labels_flip
-    labels_down = tf.map_fn(lambda x: x - 0.5, labels)
-    labels_ = tf.reshape(labels_down, (num_pairs, 2))
-    labels_rot_ = labels_ @ tf.constant([[0., -1.], [1., 0.]])
-    labels_rot = tf.reshape(labels_rot_, (num_pairs * 2,))
-    labels_rot_up = tf.map_fn(lambda x: x + 0.5, labels_rot)
+    batch_size = tf.shape(labels_tensor)[0]
+    rot_2d_base = tf.constant([[0., -1.], [1., 0.]])
+    rot_2d_ = tf.expand_dims(rot_2d_base, axis=0)
+    rot_2d = tf.tile(rot_2d_, multiples=[batch_size, 1, 1])
+    labels_down = tf.map_fn(lambda z: z - 0.5, labels_tensor)
+    labels_ = tf.reshape(labels_down, (-1, num_pairs, 2))
+    labels_rot_ = labels_ @ rot_2d
+    labels_rot = tf.reshape(labels_rot_, (-1, num_pairs * 2,))
+    labels_rot_up = tf.map_fn(lambda z: z + 0.5, labels_rot)
 
     return flip_img, labels_rot_up
 
 
 if __name__ == '__main__':
-    img = tf.placeholder('float', (96, 96, 1))
-    labels = tf.placeholder('float', (15 * 2,))
+    img = tf.placeholder('float', (None, 96, 96, 1))
+    labels = tf.placeholder('float', (None, 15 * 2,))
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        flipped_img_op = horizontal_flip(img, labels)
-        flipped_img, rot_points = sess.run(flipped_img_op, {img: train_data[0], labels: train_labels[0]})
-        plt.imshow(flipped_img[:, :, 0])
-        x = rot_points[0::2] * 96
-        y = rot_points[1::2] * 96
+        flipped_img_op = rot_90(img, labels)
+        flipped_img, rot_points = sess.run(flipped_img_op, {img: train_data[0:5], labels: train_labels[0:5]})
+        plt.imshow(flipped_img[0][:, :, 0])
+        x = rot_points[0][0::2] * 96
+        y = rot_points[0][1::2] * 96
         plt.scatter(x, y, c='r')
         plt.show()
