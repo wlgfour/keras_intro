@@ -28,8 +28,8 @@ VISUALIZE_PREDICTIONS = True
 # execute blocks
 TRAIN = False
 CHKPT_SAVE = True
-SAVE = True
-PREDICT = False
+SAVE = False
+PREDICT = True
 
 model_number = 'v1.1'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
