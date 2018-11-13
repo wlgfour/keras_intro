@@ -18,32 +18,12 @@ Challenges:
         b) how to preform the same operation on x-y points as well as entire images
 """
 
-f = np.load('data/face_images.npz')
-data = f['face_images']
-f.close()
-new_data = list()
-for i in range(np.shape(data)[2]):
-    new_data.append(data[:, :, i])
-data = np.array(new_data)  # change from (height, width, images) to (images, height, width)
-df = pd.read_csv('data/facial_keypoints.csv')
-df = df.reset_index()  # makes index df[image][0]
-# df.fill_na(0)  # fill nan with 0
-# TODO: fill rather than drop nan. do not increase loss for points with true values of 0 -- custom loss
-df = df.dropna()  # easy way out. lots of data lost
-pnts = df.values  # df to np.ndarray shape=(imgs, 30)
-data = data[pnts[:, 0].astype('int32')]  # get all images that haven't been dropped
-train_data = data * (1 / data.max())  # scale to [0, 1]
-train_data = train_data.reshape((-1, 96, 96, 1))
-train_labels = pnts[:, 1:]
-train_labels = train_labels * (1 / np.shape(data)[1])  # scale so scaled * image_width = original position
-
 
 def rot_90(img_tensor, labels_tensor, num_pairs=15):
     """
     rotates a batch of square images with one channel 90' counter clockwise
     :param labels_tensor: tensor for labels batch input
     :param img_tensor: tensor for images batch input
-    :param width: width of image
     :param num_pairs: number of x-y pairs
     :return: tensors: img: shape=(96, 96, 1), labels: [x1, y1, ..., xn, yn]
     """
@@ -63,7 +43,115 @@ def rot_90(img_tensor, labels_tensor, num_pairs=15):
     return flip_img, labels_rot_up
 
 
+def scale(img_tensor, labels_tensor, scale_factor, num_pairs=15):
+    """
+
+    :param img_tensor:
+    :param labels_tensor:
+    :param scale_factor:
+    :param num_pairs:
+    """
+    pass
+
+
+"""
+sess = tf.Session()
+filter = tf.constant([[1., 1, 1], [1, 1, 1], [1, 1, 1]])
+filter = tf.reshape(filter, (3, 3, 1))
+a = tf.nn.dilation2d(img, filter, [1, 3, 3, 1], [1, 2, 2, 1], 'SAME')
+sess.run(a, {img: train_data[0:5]})
+"""
+
+
+def pad_0_rows(img_tensor_batch, n=1):
+    """
+    adds n rows of 0s to image_tensor
+    :param img_tensor_batch: tensor to add rows to. should have shape (batch, rows, cols, channels)
+    :param n: number of rows to add
+    :return: <tensor shape=(-1, img_tensor_batch.shape[1] * (n + 1), img_tensor_batch.shape[2], 1)>
+    precondition: channels=1
+
+    >>> sess = tf.Session()
+    >>> img_padded = pad_0_rows(img, 3)
+    >>> out = sess.run(img_padded, {img: train_data[0:5]})
+    >>> plt.imshow(out[0][:, :, 0])
+    >>> plt.show()
+    """
+    def pad(img_tensor):
+        """
+        stack
+        :param img_tensor: should have shape (rows, cols)
+        :return: <tensor shape=(img_tensor.shape[0] * (n + 1), img_tensor.shape[1])>
+        """
+        # tensor is a row. shape: (rows, cols)
+        shape = tf.shape(img_tensor)
+        zeros = tf.zeros((shape[1],))  # zero tensor with same size of length col
+        return tf.map_fn(lambda row: tf.stack([row] + [zeros] * n), img_tensor)
+
+    img_shape = tf.shape(img_tensor_batch)  # (batch, rows, cols, channels)
+    rows = img_shape[1]
+    cols = img_shape[2]
+    img_rows = tf.reshape(img_tensor_batch, (-1, rows, cols))
+    return tf.reshape(tf.map_fn(pad, img_rows), (-1, rows * (n + 1), cols, 1))  # nested tf.map_fn call
+
+
+def pad_0_cols(img_tensor_batch, n=1):
+    """
+    pads an image with n columns of 0
+    :param img_tensor_batch: tensor to pad. should have shape (batch, rows, cols, channels)
+    :param n: number of 0s to add after every pixel
+    :return: <tensor shape=(-1, img_tensor_batch.shape[1], img_tensor_batch.shape[2] * (n + 1), 1)>
+    precondition: channels=1
+
+    >>> sess = tf.Session()
+    >>> img_padded = pad_0_cols(img, 3)
+    >>> out = sess.run(img_padded, {img: train_data[0:5]})
+    >>> plt.imshow(out[0][:, :, 0])
+    >>> plt.show()
+    """
+    img_shape = tf.shape(img_tensor_batch)
+    paddings = tf.constant([[0, 0], [0, 0], [0, 0], [0, n]])  # only pad on last dim
+    padded = tf.pad(img_tensor_batch, paddings)
+    return tf.reshape(padded, (-1, img_shape[1], img_shape[2] * (n + 1), 1))
+
+
+def pad_0(img_tensor_batch, n=1):
+    """
+    pads an image with n rows and columns of 0s
+    :param img_tensor_batch: batch of images with shape (-1, rows, columns, channels)
+    :param n: number of rows and columns to pad
+    :return: <tensor shape=(-1, img_tensor_batch.shape[1] * (n + 1), img_tensor_batch.shape[2] * (n + 1), 1)>
+    precondition: channels=1
+
+    >>> sess = tf.Session()
+    >>> img_padded = pad_0(img, 3)
+    >>> out = sess.run(img_padded, {img: train_data[0:5]})
+    >>> plt.imshow(out[0][:, :, 0])
+    >>> plt.show()
+    """
+    return pad_0_rows(pad_0_cols(img_tensor_batch, n), n)
+
+
 if __name__ == '__main__':
+    f = np.load('data/face_images.npz')
+    data = f['face_images']
+    f.close()
+    new_data = list()
+    for i in range(np.shape(data)[2]):
+        new_data.append(data[:, :, i])
+    data = np.array(new_data)  # change from (height, width, images) to (images, height, width)
+    df = pd.read_csv('data/facial_keypoints.csv')
+    df = df.reset_index()  # makes index df[image][0]
+    # df.fill_na(0)  # fill nan with 0
+    # TODO: fill rather than drop nan. do not increase loss for points with true values of 0 -- custom loss
+    df = df.dropna()  # easy way out. lots of data lost
+    pnts = df.values  # df to np.ndarray shape=(imgs, 30)
+    data = data[pnts[:, 0].astype('int32')]  # get all images that haven't been dropped
+    train_data = data * (1 / data.max())  # scale to [0, 1]
+    train_data = train_data.reshape((-1, 96, 96, 1))
+    train_labels = pnts[:, 1:]
+    train_labels = train_labels * (1 / np.shape(data)[1])  # scale so scaled * image_width = original position
+
     img = tf.placeholder('float', (None, 96, 96, 1))
     labels = tf.placeholder('float', (None, 15 * 2,))
     with tf.Session() as sess:
@@ -74,4 +162,8 @@ if __name__ == '__main__':
         x = rot_points[0][0::2] * 96
         y = rot_points[0][1::2] * 96
         plt.scatter(x, y, c='r')
+        plt.show()
+        img_padded = pad_0(img, 2)
+        out = sess.run(img_padded, {img: train_data[0:5]})
+        plt.imshow(out[0][:, :, 0])
         plt.show()
