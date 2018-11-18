@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import keras as k
 import tensorflow as tf
 
 """
@@ -132,6 +131,20 @@ def pad_0(img_tensor_batch, n=1):
     return pad_0_rows(pad_0_cols(img_tensor_batch, n), n)
 
 
+def upscale(img_tensor_batch, n=1):
+    """
+    pads an image with n 0s in each direction to increase size and fills in 0s with convolution
+    scales an image up by a factor of n
+    :param img_tensor_batch: batch of greyscale images shape=(-1, rows, cols, channels)
+    :param n: int to magnify the image by
+    :return: <tensor shape=(-1, img_tensor_batch.shape[1] * (n + 1), img_tensor_batch.shape[2] * (n + 1), 1)>
+
+    """
+    fltr = tf.ones((n, n, 1, 1))
+    padded = pad_0(img_tensor_batch, n - 1)
+    return tf.nn.conv2d(padded, fltr, [1, 1, 1, 1], 'SAME')
+
+
 if __name__ == '__main__':
     f = np.load('data/face_images.npz')
     data = f['face_images']
@@ -156,6 +169,7 @@ if __name__ == '__main__':
     labels = tf.placeholder('float', (None, 15 * 2,))
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
+        # rotate image
         flipped_img_op = rot_90(img, labels)
         flipped_img, rot_points = sess.run(flipped_img_op, {img: train_data[0:5], labels: train_labels[0:5]})
         plt.imshow(flipped_img[0][:, :, 0])
@@ -163,7 +177,16 @@ if __name__ == '__main__':
         y = rot_points[0][1::2] * 96
         plt.scatter(x, y, c='r')
         plt.show()
+        print(f'rotated img: {np.shape(flipped_img)}, rotated points: {np.shape(rot_points)}')
+        # pad image
         img_padded = pad_0(img, 2)
         out = sess.run(img_padded, {img: train_data[0:5]})
         plt.imshow(out[0][:, :, 0])
         plt.show()
+        print(f'padded img (2): {np.shape(out)}')
+        # upscale padded img
+        img_upscaled = upscale(img, 2)
+        out = sess.run(img_upscaled, {img: train_data[0:5]})
+        plt.imshow(out[0][:, :, 0])
+        plt.show()
+        print(f'upscale img (2): {np.shape(out)}')
