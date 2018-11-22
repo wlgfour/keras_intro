@@ -18,6 +18,35 @@ Challenges:
 """
 
 
+# tf.py_func helpers. Wrappers for numpy functions
+def tf_repeat(arr, repeats):
+    """
+    wraps a numpy functions in a tf graph operation
+    :param arr: tensor to repeat. should have shape (batch, x) to repeat x
+    :param repeats: list of multiples for each dimension
+    :return: tf.py_func
+    """
+    return tf.py_func(np.repeat, [arr, repeats, 0], tf.float32)
+
+
+def replace_out_of_bound(outer_arr, lower=0, upper=1, rep=-1.):
+    """
+    for every element x in arr, if not (lower <= x <= upper), replace with rep
+    :param outer_arr: changes values contained in this tensor
+    :param rep: value to replace out of range values with
+    :param lower: lower bound of range to keep values
+    :param upper: upper bound of range to keep values
+    :return: tf.py_func
+    """
+    def func(arr):
+        arr_ = np.array(arr)
+        np.place(arr_, arr < lower, [rep])
+        np.place(arr_, arr > upper, [rep])
+        return arr_
+    return tf.py_func(func, [outer_arr], [tf.float32])
+
+
+# image augmenter files
 def rot_90(img_tensor, labels_tensor, num_pairs=15):
     """
     rotates a batch of square images with one channel 90' counter clockwise
@@ -42,15 +71,54 @@ def rot_90(img_tensor, labels_tensor, num_pairs=15):
     return flip_img, labels_rot_up
 
 
-def scale(img_tensor, labels_tensor, scale_factor, num_pairs=15):
+def zoom(img_tensor_batch, labels_tensor, n, num_pairs=15, permutations_per_image=2):
+    """
+    zooms by a factor of n where n is an int.
+    :param img_tensor_batch: tensor of shape (batch, rows, cols, channels=1)
+    :param labels_tensor: tensor of shape (batch, (num_pairs) * 2) with (x1, y1, ..., x(num_pairs), y(num_pairs))
+                            labels must be in [0, 1]
+    :param n: integer for scale factor
+    TODO: make scale factor support fractional values. Currently only supports zooming in
+    :param num_pairs: number of point pairs. labels with shape (batch, 30) means 15 pairs
+    :param permutations_per_image: number of images to generate for each image
+    :return: <tensor shape=(-1, img_tensor_batch.shape[1], img_tensor_batch.shape[2], 1)>,
+                                                       <tensor shape=(batch_size, num_pairs * 2)>
+
+    1) upscale image so that it has larger dimensions
+    2) find top left corner coordinates. i.e. random int in range (0, edge of scaled image - original side length)
+    3) get image crop with corners at left coordinate, right_coordinate
+    4) tile label to be [[x1.1, y1.1], [x1.2, y1.2], ..., [xn.1, yn.1], [xn.m, yn.m]]
+        where each label is repeated m = permutations_per_image times
+    5) subtract label -= ( new image corner / large_image dimension )
+    6) if label not in [0, 1], replace with -1
     """
 
-    :param img_tensor:
-    :param labels_tensor:
-    :param scale_factor:
-    :param num_pairs:
-    """
-    pass
+    # image
+    upscale_img = upscale(img_tensor_batch, n)
+    upscale_shape = tf.shape(img_upscaled)  # (batch, rows, cols, channels
+    img_shape = tf.shape(img_tensor_batch)
+    x_max = tf.cast(upscale_img[2] - img_shape[2], 'int32')
+    y_max = tf.cast(upscale_img[1] - img_shape[1], 'int32')
+    x_values = tf.random_uniform((permutations_per_image,), 0, x_max, tf.int32)  # lists of top left corners of  crops
+    y_values = tf.random_uniform((permutations_per_image,), 0, y_max, tf.int32)
+    x_y_pairs = tf.stack([x_values, y_values], axis=1)  # shape is (permutations_per_image, 2)
+    cropped = tf.map_fn(lambda x_y: tf.image.crop_to_bounding_box(
+                                        upscale_img, x_y[0], x_y[1], img_shape[1], img_shape[2]), x_y_pairs)
+    # keypoints
+    x_y_pairs_repeat = tf_repeat(tf.reshape(x_y_pairs, (-1, permutations_per_image, 2)), num_pairs)
+    x_y_pairs_repeat = tf.reshape(x_y_pairs_repeat, (-1, permutations_per_image * num_pairs, 2))  # set shape
+    label_pairs = tf.reshape(labels_tensor, (-1, num_pairs, 2))
+    labels_repeated = tf_repeat(label_pairs, permutations_per_image + 1)
+    labels_repeated = tf.reshape(labels_repeated, (-1, permutations_per_image * num_pairs, 2))  # make sure shape is set
+    labels_shifted = labels_repeated - (x_y_pairs_repeat / upscale_shape[0])
+    # TODO: WARNING: above operation assumes that the image is a square when it divides all x_y points by large image
+    #       dimension
+    labels_replaced = replace_out_of_bound(labels_shifted)
+    return_labels = tf.reshape(labels_replaced, (-1, num_pairs * 2))
+
+    return cropped, return_labels
+
+
 
 
 """
@@ -139,6 +207,11 @@ def upscale(img_tensor_batch, n=1):
     :param n: int to magnify the image by
     :return: <tensor shape=(-1, img_tensor_batch.shape[1] * (n + 1), img_tensor_batch.shape[2] * (n + 1), 1)>
 
+    >>> sess = tf.Session()
+    >>> img_upscaled = upscale(img, 2)
+    >>> out = sess.run(img_upscaled, {img: train_data[0:5]})
+    >>> plt.imshow(out[0][:, :, 0])
+    >>> plt.show()
     """
     fltr = tf.ones((n, n, 1, 1))
     padded = pad_0(img_tensor_batch, n - 1)
