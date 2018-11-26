@@ -30,7 +30,7 @@ function capture() {
     const canvas = document.querySelector('#grid_canvas');
 
     const video_el = document.querySelector('#stream video');
-    let v_width = video_el.videoWidth.int();
+    let v_width = video_el.videoWidth;
     let v_height = video_el.videoHeight;
     let crop_x = 0;
     let crop_y = 0;
@@ -137,11 +137,13 @@ function make_prediction() {
         points = values;
         make_prediction();
     });
-    context_large.drawImage(video_el, 0, 0, 680, 680);
+    let draw_width = 640;
+    let draw_height = 480;
+    context_large.drawImage(video_el, 0, 0, draw_width, draw_height);
     for(let i = 0; i < points.length; i+=2) {
         // context_large.fillRect(values[i] * 680, values[i + 1] * 680, 5, 5);
         // console.log(values[i], values[i + 1]);
-        context_large.fillRect(points[i] * 680, points[i + 1] * 680, 5, 5);
+        context_large.fillRect(points[i] * draw_width, points[i + 1] * draw_height, 5, 5);
     }
 }
 
