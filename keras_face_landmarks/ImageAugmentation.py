@@ -95,15 +95,17 @@ def zoom(img_tensor_batch, labels_tensor, n, num_pairs=15, permutations_per_imag
 
     # image
     upscale_img = upscale(img_tensor_batch, n)
-    upscale_shape = tf.shape(img_upscaled)  # (batch, rows, cols, channels
-    img_shape = tf.shape(img_tensor_batch)
-    x_max = tf.cast(upscale_img[2] - img_shape[2], 'int32')
-    y_max = tf.cast(upscale_img[1] - img_shape[1], 'int32')
-    x_values = tf.random_uniform((permutations_per_image,), 0, x_max, tf.int32)  # lists of top left corners of  crops
-    y_values = tf.random_uniform((permutations_per_image,), 0, y_max, tf.int32)
+    upscale_shape = tf.cast(tf.shape(img_upscaled), tf.float32)  # (batch, rows, cols, channels
+    img_shape = tf.cast(tf.shape(img_tensor_batch), tf.float32)
+    x_max = tf.cast(upscale_shape[2] - img_shape[2], 'int32')
+    y_max = tf.cast(upscale_shape[1] - img_shape[1], 'int32')
+    # lists of top left corners of  crops
+    x_values = tf.random_uniform((permutations_per_image,), 0, tf.cast(x_max, tf.int32), tf.int32)
+    y_values = tf.random_uniform((permutations_per_image,), 0, tf.cast(y_max, tf.int32), tf.int32)
     x_y_pairs = tf.stack([x_values, y_values], axis=1)  # shape is (permutations_per_image, 2)
     cropped = tf.map_fn(lambda x_y: tf.image.crop_to_bounding_box(
-                                        upscale_img, x_y[0], x_y[1], img_shape[1], img_shape[2]), x_y_pairs)
+                        upscale_img, x_y[0], x_y[1], tf.cast(img_shape[1], tf.int32), tf.cast(img_shape[2], tf.int32)),
+                        tf.cast(x_y_pairs, tf.int32))
     # keypoints
     x_y_pairs_repeat = tf_repeat(tf.reshape(x_y_pairs, (-1, permutations_per_image, 2)), num_pairs)
     x_y_pairs_repeat = tf.reshape(x_y_pairs_repeat, (-1, permutations_per_image * num_pairs, 2))  # set shape
@@ -263,3 +265,8 @@ if __name__ == '__main__':
         plt.imshow(out[0][:, :, 0])
         plt.show()
         print(f'upscale img (2): {np.shape(out)}')
+        # zoom image
+        img_zoomed, labels_zoomed = zoom(img, labels, 2)
+        out_img, out_labels = sess.run([img_zoomed, labels_zoomed], {img: train_data, labels: train_labels})
+        plt.imshow(out_img[0][:, :, 0])
+        # plt.scatter
