@@ -30,12 +30,31 @@ function capture() {
     const canvas = document.querySelector('#grid_canvas');
 
     const video_el = document.querySelector('#stream video');
+    let v_width = video_el.videoWidth.int();
+    let v_height = video_el.videoHeight;
+    let crop_x = 0;
+    let crop_y = 0;
+    let crop_width = 0;
+    if(v_width === v_height) {
+        crop_width = crop_x = crop_y = v_height;
+    } else if(v_height > v_width) {
+        // resize to square with side length width
+        crop_y = Math.round((v_height - v_width) / 2);
+        crop_x = 0;
+        crop_width = v_width;
+    } else{  // height smaller than width
+        // resize to square side length of height
+        crop_x = Math.round((v_width - v_height) / 2);
+        crop_y = 0;
+        crop_width = v_height;
+    }
+
     canvas.width = 96;
     canvas.height = 96;
 
     // TODO: priority: high -- crop image rather than scale. webcam gets image not square
     let context = canvas.getContext('2d');
-    context.drawImage(video_el, 0, 0, 96, 96);
+    context.drawImage(video_el, crop_x, crop_y, crop_width, crop_width, 0, 0, 96, 96);
 
     let image = context.getImageData(0, 0, 96, 96);
     let avg = 0;
