@@ -133,13 +133,13 @@ if SAVE:
     ImageHandler(files.act_save, (3, 3), -1, files.base_dir, 'keras_face_landmarks')
     # tfjs accommodations
     tfjs.converters.save_keras_model(model, files.js_dir)
-    f = open('../src/tfjs_versions.txt', 'r')
+    f = open('../src/tfjs_versions_facial_keypoints.txt', 'r')
     included = False
     for line in f:
         if line.strip() == model_number:
             included = True
     f.close()
     if not included:
-        f = open('../src/tfjs_versions.txt', 'a')
+        f = open('../src/tfjs_versions_facial_keypoints.txt', 'a')
         f.write(f'{model_number}\n')
         f.close()

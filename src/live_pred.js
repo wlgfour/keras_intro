@@ -167,7 +167,7 @@ $(document).ready(function() {
     let srcs = '';
     $.ajax({
         async: false,
-        url: '../src/tfjs_versions.txt',
+        url: '../src/tfjs_versions_facial_keypoints.txt',
         dataType: 'text',
         success: function(data) {
             srcs = data;
