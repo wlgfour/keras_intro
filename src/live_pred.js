@@ -163,4 +163,22 @@ $(document).ready(function() {
     // -------------- video implementation --------------
     init_video();
     // load_model('keras_face_landmarks/log_dir/v1.1/face_keypoints_v1.1_js/model.json');
+    // load versions from txt file
+    let srcs = '';
+    $.ajax({
+        async: false,
+        url: '../src/tfjs_versions.txt',
+        dataType: 'text',
+        success: function(data) {
+            srcs = data;
+        }
+        });
+    srcs = srcs.split('\n');
+    console.log(srcs);
+  //   <select>
+  //       <option value="volvo">Volvo</option>
+  //       ... for every version in txt file
+    for(let i = 0; i < srcs.length; i++) {
+        $('#model_input').append('<option value="' + srcs[i] + '">' + srcs[i] + '</option>');
+    }
 });

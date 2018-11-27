@@ -18,8 +18,8 @@
 
     <div class="wrapper">
         <div id="model_form">
-            <label for="model_input">Model number: </label>
-            <input id="model_input" name="model_input" type="text"><br>
+            <label for="model_input">Model version: </label>
+            <select id="model_input" name="model_input"></select>
             <button onclick="let v = $('#model_input').val();
                    load_model('../keras_face_landmarks/log_dir/'+v+'/face_keypoints_'+v+'_js/model.json');
                    $('#model_form').hide();"> Submit

@@ -28,8 +28,8 @@ VISUALIZE_PREDICTIONS = True
 # execute blocks
 TRAIN = False
 CHKPT_SAVE = True
-SAVE = False
-PREDICT = True
+SAVE = True
+PREDICT = False
 
 model_number = 'v1.1'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
@@ -131,4 +131,15 @@ if SAVE:
         act_collector.save(files.act_save)
         model.save(files.save_file)
     ImageHandler(files.act_save, (3, 3), -1, files.base_dir, 'keras_face_landmarks')
+    # tfjs accommodations
     tfjs.converters.save_keras_model(model, files.js_dir)
+    f = open('../src/tfjs_versions.txt', 'r')
+    included = False
+    for line in f:
+        if line.strip() == model_number:
+            included = True
+    f.close()
+    if not included:
+        f = open('../src/tfjs_versions.txt', 'a')
+        f.write(f'{model_number}\n')
+        f.close()
