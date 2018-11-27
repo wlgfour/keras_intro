@@ -147,10 +147,14 @@ function make_prediction() {
     }
 }
 
-async function load_model(path) {
+function load_model(path) {
     // let btn = document.getElementById('load_model');
     // btn.parentNode.removeChild(btn);
-    model = await tf.loadModel(path);
+    tf.loadModel(path).then(function(val) {
+        console.log(val);
+        $('#make_pred').show();
+        model = val;
+    });
 }
 
 // ----------------------- END video functions ------------------
