@@ -3,17 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow.keras as keras
-from tensorflow.keras.layers import Layer, Conv2D, MaxPool2D, Dropout, Flatten, Dense
-# from training_arrays
-from tensorflow.python.keras.engine import training_utils
-from tensorflow.python.keras.utils.generic_utils import make_batches
-from tensorflow.python.keras.utils.generic_utils import Progbar
-from tensorflow.python.keras.utils.generic_utils import slice_arrays
+from tensorflow.keras.layers import Layer
 
-try:
-    from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
-except ImportError:
-    issparse = None
 
 """
 Goal:
@@ -109,82 +100,27 @@ class RandomCrop(Layer):
 class ImAug(keras.Model):
     """class that inherits keras.model and creates an image augmentation model that outputs"""
 
-    def __init__(self):
+    def __init__(self, output_shape, ratios=None):
+        """
+
+        :param output_shape: has shape [output_height, output_width]
+        :param ratios: list of ratios to crop to (ratio=0.5 = 2x zoom). will expand dataset by factor of len(ratios)
+        """
         super(ImAug, self).__init__()
-        # define a bunch of self.layers
+        self.point_layers = []
+        if ratios is not None:
+            self.point_layers.append(RandomCrop(ratios, output_shape))
 
     def call(self, inputs, training=None, mask=None):
         # https://www.tensorflow.org/api_docs/python/tf/keras/models/Model
         # define forward pass of the network
-        pass
+        output = None
+        p_layer = inputs
+        for layer in self.point_layers:
+            output = layer(p_layer)
+            p_layer = layer
+        return output
 
-
-"""
-def custom_predict_loop(model, inputs, batch_size=32, verbose=0, steps=None):
-    
-    #mostly copied from training_arrays.py. want to be able to output larger batch than input
-    
-    model._make_predict_function()
-    f = model.predict_function
-
-    if model.uses_learning_phase and not isinstance(tf.python.keras.backend.learning_phase(), int):
-        ins = inputs + [0]
-    else:
-        ins = inputs
-
-    num_samples = training_utils.check_num_samples(
-        inputs, batch_size, steps, 'steps')
-    if verbose == 1:
-        if steps is not None:
-            progbar = Progbar(target=steps)
-        else:
-            progbar = Progbar(target=num_samples)
-
-    indices_for_conversion_to_dense = []
-    for i in range(len(model._feed_inputs)):
-        if (issparse is not None and issparse(inputs[i]) and
-                not tf.python.keras.backend.is_sparse(model._feed_inputs[i])):
-            indices_for_conversion_to_dense.append(i)
-    # Sample-based predictions.
-    outs = []
-    batches = make_batches(num_samples, 32)  # changed last param from batch_size to 32
-    index_array = np.arange(num_samples)
-    for batch_index, (batch_start, batch_end) in enumerate(batches):
-        batch_ids = index_array[batch_start:batch_end]
-        if ins and isinstance(ins[-1], int):
-            # Do not slice the training phase flag.
-            ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-        else:
-            ins_batch = slice_arrays(ins, batch_ids)
-        for i in indices_for_conversion_to_dense:
-            ins_batch[i] = ins_batch[i].toarray()
-
-        batch_outs = f(ins_batch)
-        if not isinstance(batch_outs, list):
-            batch_outs = [batch_outs]
-        if batch_index == 0:
-            # Pre-allocate the results arrays.
-            for batch_out in batch_outs:
-                shape = batch_out.shape  # edited from: (num_samples,) + batch_out.shape[1:]
-                outs.append(np.zeros(shape, dtype=batch_out.dtype))
-        for i, batch_out in enumerate(batch_outs):
-            outs[i][batch_start:batch_end] = batch_out
-        if verbose == 1:
-            progbar.update(batch_end)
-    if len(outs) == 1:
-        return outs[0]
-    return outs
-
-
-def predict(model, x=None, batch_size=None, verbose=0,
-            steps=None, max_queue_size=10, workers=1, use_multiprocessing=False):
-    # - custom predict loop for model
-    #https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/python/keras/engine/training.py
-    #- line: 1778
-    
-    x, _, _ = model._standardize_user_data(x, check_steps=True, steps_name='steps', steps=steps)
-    return custom_predict_loop(model, x, batch_size=batch_size, verbose=verbose, steps=steps)
-"""
 
 if __name__ == '__main__':
     f = np.load('data/face_images.npz')
@@ -209,12 +145,10 @@ if __name__ == '__main__':
     plt.imshow(train_data[0, :, :, 0])
     plt.show()
 
-    model = keras.Sequential()
+    model = ImAug([96, 96], ratios=[0.5, 0.75, 1.])
     # (96, 96)
-    model.add(RandomCrop([0.75, 0.85, 0.95], [96, 96], input_shape=(96, 96, 1)))
-    model.summary()
     out = model.predict(train_data[0:1])
     for i in range(3):
         plt.imshow(out[0, i, :, :, 0])
         plt.show()
-    print(np.shape(out))
+    model.summary()
