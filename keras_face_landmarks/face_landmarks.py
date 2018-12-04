@@ -31,7 +31,7 @@ CHKPT_SAVE = True
 SAVE = True
 PREDICT = False
 
-model_number = 'v1.1'
+model_number = 'v1.11'
 files = FileArchitecture(model_number, f'./log_dir/{model_number}', 'face_keypoints')
 files.construct_file_tree()
 act_collector = ActivationCollector(['m1.0', 'm1.1', 'm2.0', 'm2.1', 'm3.0', 'm3.1'],
