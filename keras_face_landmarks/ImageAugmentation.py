@@ -186,33 +186,86 @@ class ZoomOut(Layer):
                                tf.constant(self.out_shape_tensor[1]), input_shape[-1]])
 
 
-class ImAug(keras.Model):
-    """class that inherits keras.model and creates an image augmentation model that outputs"""
+class ImAug:
+    """
+    - class that makes a keras model containing image augmentation layers specified above
+    - class acts as a wrapper for tf.keras.Model
+    - calls all methods that keep points constant on inputs directly and then concatenates outputs and flattens to
+      the form (batch, height, width, channels)
+    TODO: make it so that images with ratio 1. skip augmentation to speed up process
+    TODO: does not support operations that do not keep points constant in a 2nd/4th channel
+    TODO: shrinking might get rid of keypoints, expanding might add values around keypoints
+    """
 
-    def __init__(self, output_shape, ratios=None, shrink_factors=None):
+    def __init__(self, input_shape, output_shape, ratios=None, shrink_factors=None):
         """
-
-        :param output_shape: has shape [output_height, output_width]
-        :param ratios: list of ratios to crop to (ratio=0.5 = 2x zoom). will expand dataset by factor of len(ratios)
+        initialized layers and model
+        :param input_shape: should be of the form (batch, HEIGHT, WIDTH, CHANNELS)[1:]
+        :param output_shape: should be of the form (batch, HEIGHT, WIDTH, CHANNELS)[1:]
+        :param ratios: floats in the range (0, 1.]. effective zoom of 1/ratio
+        :param shrink_factors: floats in the range (0., 1.]. effective zoom of ratio
         """
-        super(ImAug, self).__init__()
+        self.input_shape = input_shape
+        self.output_shape = output_shape
+        # define model
+        self.inputs = keras.Input(shape=input_shape)
         self.point_layers = []
+        # append layers that do not change pixel values (much) to output
         if ratios is not None:
-            lyr = RandomCrop(ratios, output_shape)
+            lyr = RandomCrop(ratios, output_shape[0:-1])(self.inputs)
             self.point_layers.append(lyr)
         if shrink_factors is not None:
-            lyr = ZoomOut(output_shape, shrink_factors)
+            lyr = ZoomOut(output_shape[0:-1], shrink_factors)(self.inputs)
             self.point_layers.append(lyr)
 
-    def call(self, inputs, training=None, mask=None):
-        # https://www.tensorflow.org/api_docs/python/tf/keras/models/Model
-        # define forward pass of the network
-        outputs = []
-        p_layer = inputs
-        for layer in self.point_layers:
-            outputs.append(layer(p_layer))
-            # p_layer = layer
-        return tf.concat(outputs, axis=1)
+        if len(self.point_layers) == 1:
+            point_outs = self.point_layers[0]
+        else:
+            point_outs = keras.layers.concatenate(self.point_layers, axis=1)
+        self.point_model = keras.Model(inputs=self.inputs, outputs=point_outs)
+
+    def __call__(self, inputs):
+        """
+        - something like ImAug(init_vars)(numpy_array)
+        - wraps model.predict()
+        :param inputs: numpy array of input images. shape(batch, ...)
+        :return: numpy array
+        """
+        _out = self.point_model.predict(inputs)
+        return np.reshape(_out, [-1] + self.output_shape)
+
+    def get_output_tensor(self):
+        """
+        - returns a tensor containing the reshaped output of the model
+        :return: tensor from model.outputs reshaped
+        """
+        return tf.reshape(self.point_model.outputs, [-1] + self.output_shape)
+
+    def summary(self):
+        """
+        - wraps self.model.summary
+        """
+        self.point_model.summary()
+
+
+class Augmentor:
+    """
+    can augment batches of images or output a tensor containing augmented images and keypoints
+    pass lists of keypoints and images and it will preform specified augmentations on the images and keypoints
+    NOTE to self: y_true does not need to be differentiable in loss function
+        i.e. I can do conditional and non-differentiable operations on the points layer and the compare x-y coordinates
+             as long as the coordinate comparison (mse?) is differentiable
+    TODO: make sure all operations in the layers defined in the model are non-trainable
+    TODO: consider using heat map loss
+    """
+    def __init__(self):
+        pass
+
+    def get_tensor_output(self):
+        pass
+
+    def predict_batch(self, batch, points):
+        pass
 
 
 if __name__ == '__main__':
@@ -238,11 +291,13 @@ if __name__ == '__main__':
     plt.imshow(train_data[0, :, :, 0])
     plt.show()
 
-    model = ImAug([96, 96], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
+    model = ImAug([96, 96, 1], [96, 96, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
     # (96, 96)
-    out = model.predict(train_data[0:3])
-    out = np.reshape(out, [-1, 96, 96])
-    for i in out:
-        plt.imshow(i)
+    out = model(train_data[0:5])
+    for i, img in enumerate(out):
+        plt.imshow(img[:, :, 0])
         plt.show()
+        if i > 10:
+            break
     model.summary()
+
