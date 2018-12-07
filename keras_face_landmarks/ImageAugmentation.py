@@ -130,9 +130,6 @@ class ZoomOut(Layer):
         new_w_h = tf.map_fn(lambda r: tf.scalar_mul(r, tf.cast(w_h, tf.float32)),
                             self.shrink_factors_tensor, name='new_w_h')
         new_w_h = tf.cast(new_w_h, tf.int32)  # shape=(self.perms, 2)
-        # imgs_small = tf.map_fn(lambda wh: tf.image.resize_images(inputs, tf.cast(wh, tf.int32), align_corners=True),
-        #                        tf.cast(new_w_h, tf.float32), name='small_images')
-        # shape=(perms, batch, height, ...). can't reshape because some images got cropped to different sizes
         total_pad_elems = tf.map_fn(lambda wh: self.out_shape_tensor - wh, new_w_h, name='total_pad_elems')
         # shape should = (self.perms, 2)
         # !!! - WARNING: really only good for square images
@@ -150,23 +147,19 @@ class ZoomOut(Layer):
                              split_and_tot, name='width_height_l_r_pads')
         # creates a list of [[pad_elems_vertical_left, "horizontal__left], ["_right, "_right]]
         # below: while loop to pad images to return size
-        k = tf.constant(0)
-        condition = lambda _i, _: tf.less(_i, tf.constant(self.perms), name='pad_while_cond')  # i < perms
-        # padded0 = tf.zeros(tf.TensorShape([1, self.in_shape[0].value, self.out_shape[0],
-        #                                    self.out_shape[1], self.in_shape[-1].value]),
-        #                    dtype=tf.int32, name='padded_imgs')
-        padded0 = tf.zeros([tf.constant(1), in_shape[0], self.out_shape_tensor[0],
-                            self.out_shape_tensor[1], self.in_shape[-1]])
+        k = tf.constant(1)
+        img_small0 = tf.image.resize_images(inputs, new_w_h[0], align_corners=True)  # initial small image to be padded
+        padded0 = tf.expand_dims(tf.reshape(tf.pad(img_small0, [[0, 0], [pad_lens[0][0][0], pad_lens[0][1][0]],
+                                                                [pad_lens[0][0][1], pad_lens[0][1][1]], [0, 0]],
+                                                   mode=self.padding, constant_values=self.constant,
+                                                   name='pad_imgs_to_out_shape'),
+                                            [-1, self.out_shape[0], self.out_shape[1], self.in_shape[-1].value]),
+                                 axis=0)
 
-        # tf.expand_dims(tf.reshape(tf.pad(imgs_small[0], [[0, 0], [pad_lens[0][0][0], pad_lens[0][1][0]],
-        #                                                 [pad_lens[0][0][1], pad_lens[0][1][1]], [0, 0]],
-        #                                 mode=self.padding, constant_values=self.constant,
-        #                                 name='pad_imgs_to_out_shape0'),
-        #                          [in_shape[0], self.out_shape_tensor[0],
-        #                           self.out_shape_tensor[1], self.in_shape[-1]]
-        #                          ), 0)
+        # creates initial image for the rest to be appended to. shape needs to be very specific to match shape_invariant
 
         def body(_i, _padded):
+            # operation to preform on each batch of images per ratio
             img_small = tf.image.resize_images(inputs, new_w_h[_i], align_corners=True)
             __padded = tf.expand_dims(tf.pad(img_small, [[0, 0], [pad_lens[_i][0][0], pad_lens[_i][1][0]],
                                                          [pad_lens[_i][0][1], pad_lens[_i][1][1]], [0, 0]],
@@ -175,21 +168,18 @@ class ZoomOut(Layer):
             ret = tf.concat([__padded, _padded], axis=0, name='padded_img')
             return tf.add(_i, 1), ret
 
-        padded = tf.while_loop(condition, body, [k, padded0],
+        padded = tf.while_loop(lambda _i, _: tf.less(_i, tf.constant(self.perms), name='pad_while_cond'),  # i < perms
+                               body, [k, padded0],
                                shape_invariants=[k.get_shape(), tf.TensorShape([None,
                                                                                 self.in_shape[0].value,
                                                                                 self.out_shape[0],
                                                                                 self.out_shape[1],
                                                                                 self.in_shape[-1].value])],
                                name='pad_while_loop')[1]
-        # padded = tf.map_fn(lambda im_pad: tf.pad(im_pad[0], [[0, 0], [im_pad[1][0][0], im_pad[1][1][0]],
-        #                                                [im_pad[1][0][1], im_pad[1][1][1]], [0, 0]],
-        #                                           mode=self.padding, constant_values=self.constant,
-        #                                           name='pad_imgs_to_out_shape0'), (imgs_small, pad_lens))
         output_shape_cast = [self.in_shape[0].value, self.perms, self.out_shape[0],
                              self.out_shape[1], self.in_shape[-1].value]
         output_shape_cast = [-1 if _el is None else _el for _el in output_shape_cast]  # None -> -1 for tensor
-        return tf.reshape(padded[1:], output_shape_cast)
+        return tf.reshape(padded, output_shape_cast)
 
     def compute_output_shape(self, input_shape):
         return tf.TensorShape([tf.constant(-1), tf.constant(self.perms), tf.constant(self.out_shape_tensor[0]),
@@ -251,7 +241,8 @@ if __name__ == '__main__':
     model = ImAug([96, 96], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
     # (96, 96)
     out = model.predict(train_data[0:3])
-    for i in range(len(out[0])):
-        plt.imshow(out[0, i, :, :, 0])
+    out = np.reshape(out, [-1, 96, 96])
+    for i in out:
+        plt.imshow(i)
         plt.show()
     model.summary()
