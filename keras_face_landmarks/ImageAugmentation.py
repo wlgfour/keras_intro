@@ -248,26 +248,6 @@ class ImAug:
         self.point_model.summary()
 
 
-class Augmentor:
-    """
-    can augment batches of images or output a tensor containing augmented images and keypoints
-    pass lists of keypoints and images and it will preform specified augmentations on the images and keypoints
-    NOTE to self: y_true does not need to be differentiable in loss function
-        i.e. I can do conditional and non-differentiable operations on the points layer and the compare x-y coordinates
-             as long as the coordinate comparison (mse?) is differentiable
-    TODO: make sure all operations in the layers defined in the model are non-trainable
-    TODO: consider using heat map loss
-    """
-    def __init__(self):
-        pass
-
-    def get_tensor_output(self):
-        pass
-
-    def predict_batch(self, batch, points):
-        pass
-
-
 if __name__ == '__main__':
     f = np.load('data/face_images.npz')
     data = f['face_images']
