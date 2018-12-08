@@ -117,6 +117,7 @@ class ZoomOut(Layer):
     steps:
         inputs: output_shape(height, width), shrink_factor, padding('CONSTANT', 'REFLECT', 'SYMMETRIC'), constant=0.
         -) calculate new image shapes by shrink_factor * dimension: shape=(len(shrink_factor), 2(height, width))
+           where dimension is the output dimension
         -) resize to new dimensions. changes shape to (batch, len(shrink_factor), height, ...)
         -) find number of items to pad on top and bottom. output_dimension - new_dimension
         -) find random split for top vs. bottom pad. splits = random(0, num_pads)
@@ -140,7 +141,7 @@ class ZoomOut(Layer):
 
     def call(self, inputs, **kwargs):
         in_shape = tf.shape(inputs)  # has to have shape (batch, height, width, channels)
-        w_h = in_shape[-3:-1]
+        w_h = self.out_shape_tensor  # in_shape[-3:-1]
         new_w_h = tf.map_fn(lambda r: tf.scalar_mul(r, tf.cast(w_h, tf.float32)),
                             self.shrink_factors_tensor, name='new_w_h')
         new_w_h = tf.cast(new_w_h, tf.int32)  # shape=(self.perms, 2)
@@ -149,8 +150,8 @@ class ZoomOut(Layer):
         # !!! - WARNING: really only good for square images
         splits = tf.map_fn(lambda tot_pad: tf.cond(tf.logical_or(tf.equal(tot_pad[0], tf.constant(0)),
                                                                  tf.equal(tot_pad[1], tf.constant(0))),
-                                                   lambda: tf.constant([0, 0]),
-                                                   lambda: tf.concat(
+                                                   lambda: tf.constant([0, 0]),  # if the number of px to pad is 0
+                                                   lambda: tf.concat(  # if there are mode than 0 px to pad, rand split
                                                        [tf.random_uniform((1,), tf.constant(0), tot_pad[0], tf.int32),
                                                         tf.random_uniform((1,), tf.constant(0), tot_pad[1], tf.int32)],
                                                        axis=0)
@@ -303,13 +304,10 @@ if __name__ == '__main__':
     plt.imshow(train_data[0, :, :, 0])
     plt.show()
 
-    model = ImAug([96, 96, 1], [96, 96, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
+    model = ImAug([96, 96, 1], [48, 48, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
     out_layer, model_in = model.get_output_layer()
-    # l1 = keras.layers.Dropout(0.5)(out_layer)
-    # model2 = keras.Model(inputs=model_in, outputs=l1)
-    # model2 = ImAug([25, 25, 1], [24, 24, 1], inputs=out_layer, model_input=model_in,
-    #                ratios=[0.5, 0.75, 1.], shrink_factors=[0.1])
-    model2 = model
+    model2 = ImAug([48, 48, 1], [72, 72, 1], inputs=out_layer, model_input=model_in,
+                   ratios=[0.5, 0.75, 1.], shrink_factors=[0.1])
     # (96, 96)
     keras.utils.plot_model(model2.point_model, 'ImAug_chain.png', show_shapes=True)
     model2.summary()
