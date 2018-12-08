@@ -32,7 +32,8 @@ Challenges / Unresolved Problems:
 
 class MyReshape(Layer):
     """
-    wraps tf.reshape in a keras layer so that output is not fixed to [batch_size] + output_shape
+    - wraps tf.reshape in a keras layer so that output is not fixed to [batch_size] + output_shape
+    - call like layer_out = MyReshape(target_shape)(input) with target_shape including batch dimension
     """
 
     def __init__(self, target_shape, **kwargs):
