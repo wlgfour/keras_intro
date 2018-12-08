@@ -1,3 +1,4 @@
+import graphviz as graphviz
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,6 +28,19 @@ Challenges / Unresolved Problems:
         - how are images and points ordered?
         - points masks will be added to image as an appended channel
 """
+
+
+class MyReshape(Layer):
+    """
+    wraps tf.reshape in a keras layer so that output is not fixed to [batch_size] + output_shape
+    """
+
+    def __init__(self, target_shape, **kwargs):
+        super(MyReshape, self).__init__(**kwargs)
+        self.target_shape = target_shape
+
+    def call(self, inputs, **kwargs):
+        return tf.reshape(inputs, self.target_shape)
 
 
 class RandomCrop(Layer):
@@ -164,7 +178,7 @@ class ZoomOut(Layer):
             __padded = tf.expand_dims(tf.pad(img_small, [[0, 0], [pad_lens[_i][0][0], pad_lens[_i][1][0]],
                                                          [pad_lens[_i][0][1], pad_lens[_i][1][1]], [0, 0]],
                                              mode=self.padding, constant_values=self.constant,
-                                             name='pad_imgs_to_out_shape'), axis=0)
+                                             name='pad_imgs_to_out_shape_in_loop'), axis=0)
             ret = tf.concat([__padded, _padded], axis=0, name='padded_img')
             return tf.add(_i, 1), ret
 
@@ -197,7 +211,7 @@ class ImAug:
     TODO: shrinking might get rid of keypoints, expanding might add values around keypoints
     """
 
-    def __init__(self, input_shape, output_shape, ratios=None, shrink_factors=None):
+    def __init__(self, input_shape, output_shape, inputs=None, model_input=None, ratios=None, shrink_factors=None):
         """
         initialized layers and model
         :param input_shape: should be of the form (batch, HEIGHT, WIDTH, CHANNELS)[1:]
@@ -208,7 +222,16 @@ class ImAug:
         self.input_shape = input_shape
         self.output_shape = output_shape
         # define model
-        self.inputs = keras.Input(shape=input_shape)
+        if model_input is None:
+            # self.Input is the model input
+            self.Input = keras.Input(shape=input_shape)
+        else:
+            self.Input = model_input
+        if inputs is None:
+            # first input to model layers
+            self.inputs = self.Input
+        else:
+            self.inputs = inputs
         self.point_layers = []
         # append layers that do not change pixel values (much) to output
         if ratios is not None:
@@ -219,10 +242,10 @@ class ImAug:
             self.point_layers.append(lyr)
 
         if len(self.point_layers) == 1:
-            point_outs = self.point_layers[0]
+            self.point_concat = self.point_layers[0]
         else:
-            point_outs = keras.layers.concatenate(self.point_layers, axis=1)
-        self.point_model = keras.Model(inputs=self.inputs, outputs=point_outs)
+            self.point_concat = keras.layers.concatenate(self.point_layers, axis=1)
+        self.point_model = keras.Model(inputs=self.Input, outputs=self.point_concat)
 
     def __call__(self, inputs):
         """
@@ -240,6 +263,15 @@ class ImAug:
         :return: tensor from model.outputs reshaped
         """
         return tf.reshape(self.point_model.outputs, [-1] + self.output_shape)
+
+    def get_output_layer(self):
+        """
+        - returns a keras layer containing the reshaped output of the model
+        - used for linking one model to another because this way does not actually export the defined model with a graph
+        :return: tf.keras.layers.Reshape, self.Input
+        """
+        # return keras.layers.Reshape(self.output_shape)(self.point_concat), self.Input
+        return MyReshape([-1] + self.output_shape)(self.point_concat), self.Input
 
     def summary(self):
         """
@@ -272,12 +304,18 @@ if __name__ == '__main__':
     plt.show()
 
     model = ImAug([96, 96, 1], [96, 96, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.])
+    out_layer, model_in = model.get_output_layer()
+    # l1 = keras.layers.Dropout(0.5)(out_layer)
+    # model2 = keras.Model(inputs=model_in, outputs=l1)
+    # model2 = ImAug([25, 25, 1], [24, 24, 1], inputs=out_layer, model_input=model_in,
+    #                ratios=[0.5, 0.75, 1.], shrink_factors=[0.1])
+    model2 = model
     # (96, 96)
+    keras.utils.plot_model(model2.point_model, 'ImAug_chain.png', show_shapes=True)
+    model2.summary()
     out = model(train_data[0:5])
-    for i, img in enumerate(out):
+    for i, img in enumerate(out[-1::-1]):
         plt.imshow(img[:, :, 0])
         plt.show()
         if i > 10:
             break
-    model.summary()
-
