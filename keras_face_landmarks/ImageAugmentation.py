@@ -214,40 +214,53 @@ class ImAug:
     """
 
     def __init__(self, input_shape, output_shape, inputs=None, model_input=None, ratios=None, shrink_factors=None,
-                 pad_mode='SYMMETRIC', pad_constant=0):
+                 pad_mode='CONSTANT', pad_constant=0, p_im_aug=None):
         """
         initialized layers and model
         :param input_shape: should be of the form (batch, HEIGHT, WIDTH, CHANNELS)[1:]
         :param output_shape: should be of the form (batch, HEIGHT, WIDTH, CHANNELS)[1:]
         :param ratios: floats in the range (0, 1.]. effective zoom of 1/ratio
         :param shrink_factors: floats in the range (0., 1.]. effective zoom of ratio
+        :param p_im_aug: previous ImAug class if being chained. Auto chains models and keeps track of perms
         """
         self.input_shape = input_shape
         self.output_shape = output_shape
+        self.perms = 0
         # define model
-        if model_input is None:
+        if model_input is None and p_im_aug is None:
             # self.Input is the model input
             self.Input = keras.Input(shape=input_shape)
+        elif p_im_aug is not None:
+            self.Input = p_im_aug.Input
         else:
             self.Input = model_input
-        if inputs is None:
+        if inputs is None and p_im_aug is None:
             # first input to model layers
             self.inputs = self.Input
+        elif p_im_aug is not None:
+            self.inputs = p_im_aug.get_output_layer()[0]
         else:
             self.inputs = inputs
+
         self.point_layers = []
         # append layers that do not change pixel values (much) to output
         if ratios is not None:
             lyr = RandomCrop(ratios, output_shape[0:-1])(self.inputs)
             self.point_layers.append(lyr)
+            self.perms += len(ratios)
         if shrink_factors is not None:
             lyr = ZoomOut(output_shape[0:-1], shrink_factors, pad_mode, pad_constant)(self.inputs)
             self.point_layers.append(lyr)
+            self.perms += len(shrink_factors)
+        if p_im_aug is not None:
+            self.perms *= p_im_aug.perms
+
         if len(self.point_layers) == 1:
             self.point_concat = self.point_layers[0]
         else:
             self.point_concat = keras.layers.concatenate(self.point_layers, axis=1)
-        self.point_model = keras.Model(inputs=self.Input, outputs=self.point_concat)
+        self.out_reshape_keras = MyReshape([-1, self.perms] + self.output_shape)(self.point_concat)
+        self.point_model = keras.Model(inputs=self.Input, outputs=self.out_reshape_keras)
 
     def __call__(self, inputs):
         """
@@ -305,14 +318,20 @@ if __name__ == '__main__':
     plt.imshow(train_data[0, :, :, 0])
     plt.show()
 
-    model = ImAug([96, 96, 1], [48, 48, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.], pad_mode='CONSTANT')
-    out_layer, model_in = model.get_output_layer()
-    model2 = ImAug([48, 48, 1], [72, 72, 1], inputs=out_layer, model_input=model_in,
+    model1 = ImAug([96, 96, 1], [48, 48, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.],
+                   pad_mode='CONSTANT')
+    model2 = ImAug([48, 48, 1], [72, 72, 1], p_im_aug=model1,
                    ratios=[0.5, 0.75, 1.], shrink_factors=[0.1])
     # (96, 96)
-    keras.utils.plot_model(model2.point_model, 'ImAug_chain.png', show_shapes=True)
-    model2.summary()
-    out = model(train_data[0:5])
+
+    out_layer, model_in = model2.get_output_layer()
+    c1 = keras.layers.Conv2D(1, (3, 3), padding='SAME', activation='relu', name='convolution',
+                             input_shape=(72, 72, 1))(out_layer)
+    u1 = keras.layers.UpSampling2D()(c1)
+    model = keras.Model(inputs=[model_in], outputs=[u1])
+
+    keras.utils.plot_model(model, 'ImAug_chain.png', show_shapes=True)
+    out = model.predict(train_data[0:5])
     for i, img in enumerate(out[-1::-1]):
         plt.imshow(img[:, :, 0])
         plt.show()
