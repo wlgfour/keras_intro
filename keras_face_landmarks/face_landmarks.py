@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import tensorflow.keras as k
+import tensorflow.keras as keras
 from tensorflow.keras.layers import Conv2D, MaxPool2D, Dropout, Flatten, Dense
 import tensorflowjs as tfjs
 from Helpers import ActivationCollector, FileArchitecture, ImageHandler
@@ -27,8 +27,8 @@ VISUALIZE_TRAIN = True
 VISUALIZE_PREDICTIONS = True
 # execute blocks
 TRAIN = False
-CHKPT_SAVE = True
-SAVE = True
+CHKPT_SAVE = False
+SAVE = False
 PREDICT = False
 
 model_number = 'v1.11'
@@ -73,11 +73,11 @@ if VISUALIZE_TRAIN:  # visualize training data to verify that scaling works
 print('initializing model')
 if files.load:
     print('    found save file: loading model')
-    model = k.models.load_model(files.save_file)
+    model = keras.models.load_model(files.save_file)
 else:
     # TODO: data augmentation layer
     print('    building model')
-    model = k.Sequential()
+    model = keras.Sequential()
     # (96, 96)
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', input_shape=(96, 96, 1), name='m1.0'))
     model.add(Conv2D(16, (3, 3), padding='same', activation='relu', name='m1.1'))
@@ -101,16 +101,18 @@ else:
                   metrics=[]
                   )
 model.summary()
+keras.utils.plot_model(model, f'{files.base_dir}/model.png', show_shapes=True)
 
 # callbacks
 print('defining callbacks')
 callbacks = list()
-callbacks.append(k.callbacks.TensorBoard(log_dir=files.tboard_cur_dir, histogram_freq=1, batch_size=32,
-                                         write_graph=True, write_grads=True, write_images=True))
+callbacks.append(keras.callbacks.TensorBoard(log_dir=files.tboard_cur_dir, histogram_freq=1, batch_size=32,
+                                             write_graph=True, write_grads=True, write_images=True))
 callbacks.append(act_collector)
 if CHKPT_SAVE:
     # checkpoint saves
-    callbacks.append(k.callbacks.ModelCheckpoint(files.save_file, monitor='val_loss', save_best_only=True, mode='min'))
+    callbacks.append(keras.callbacks.ModelCheckpoint(files.save_file, monitor='val_loss',
+                                                     save_best_only=True, mode='min'))
 
 # train model
 if TRAIN:
