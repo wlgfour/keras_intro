@@ -275,9 +275,12 @@ class ImAug:
     def get_output_tensor(self):
         """
         - returns a tensor containing the reshaped output of the model
-        :return: tensor from model.outputs reshaped
+        >> out_tensor, in_op = model.get_output_tensor()
+        >> sess = tf.Session()
+        >> out = sess.run(out_tensor, feed_dict={in_op: train_data})
+        :return: tensor from model.outputs reshaped, input op for feed_dict
         """
-        return tf.reshape(self.point_model.outputs, [-1] + self.output_shape)
+        return tf.reshape(self.point_model.outputs, [-1] + self.output_shape), self.point_model.inputs[0]
 
     def get_output_layer(self):
         """
@@ -293,6 +296,51 @@ class ImAug:
         - wraps self.model.summary
         """
         self.point_model.summary()
+
+
+class AugGenerator(keras.utils.Sequence):
+    """
+    - inherits keras Sequence and can be used as a generator for data in training. Wraps an ImAug model
+    """
+
+    def __init__(self, data_loader, im_aug=None, batch_size=32, shuffle=True):
+        """
+        - initializes relevant values and loads the dataset into memory
+        :param im_aug: ImAug model to use for image augmentation. None means don't augment
+        :param data_loader: function that returns images, labels(x-y) as numpy arrays
+        :param batch_size: number of images per batch
+        :param shuffle: whether to shuffle the images at generation
+        """
+        if im_aug is not None:
+            self.im_aug = im_aug
+            self.augmented_tensor, self.input_tensor = im_aug.get_output_tensor()
+            self.sess = tf.Session()
+            self.img_shape = im_aug.output_shape
+            self.augment_images = lambda images: images
+            # TODO: better define heat map augmentation behavior
+            # TODO cont: how are labels handled??
+        else:
+            # set self.augment_images to lambda image: image
+            pass
+        self.images, self.labels = data_loader()
+        self.img_shape = np.shape(self.images)
+        self.label_shape = np.shape(self.labels)
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+
+        self.on_epoch_end()
+
+    def __getitem__(self, index):
+        pass
+
+    def __len__(self):
+        pass
+
+    def on_epoch_end(self):
+        pass
+
+    def __data_generation(self, indexes):
+        pass
 
 
 if __name__ == '__main__':
@@ -325,10 +373,15 @@ if __name__ == '__main__':
     # (96, 96)
 
     out_layer, model_in = model2.get_output_layer()
-    c1 = keras.layers.Conv2D(1, (3, 3), padding='SAME', activation='relu', name='convolution',
-                             input_shape=(72, 72, 1))(out_layer)
-    u1 = keras.layers.UpSampling2D()(c1)
-    model = keras.Model(inputs=[model_in], outputs=[u1])
+    model = keras.models.Sequential()
+    model.add(keras.layers.Conv2D(1, (3, 3), padding='SAME', activation='relu', name='convolution',
+                                  input_shape=(72, 72, 1)))
+    model.add(keras.layers.UpSampling2D())
+    model.predict_generator(
+        generator=AugGenerator(model2),
+        use_multiprocessing=True,
+        workers=3
+    )
 
     keras.utils.plot_model(model, 'ImAug_chain.png', show_shapes=True)
     out = model.predict(train_data[0:5])
