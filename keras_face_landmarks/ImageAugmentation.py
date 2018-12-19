@@ -1,4 +1,3 @@
-import graphviz as graphviz
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -200,6 +199,64 @@ class ZoomOut(Layer):
     def compute_output_shape(self, input_shape):
         return tf.TensorShape([tf.constant(-1), tf.constant(self.perms), tf.constant(self.out_shape_tensor[0]),
                                tf.constant(self.out_shape_tensor[1]), input_shape[-1]])
+
+
+class PointsToHeatmap(Layer):
+    """
+    - converts batches of x-y points to heat maps
+    """
+
+    def __init__(self, image_size, radius, **kwargs):
+        """
+        :param image_size: (height, width)
+        :param num_pairs: int representing number of pairs of points being passed as [x, y, ..., x, y]
+        """
+        super(PointsToHeatmap, self).__init__(**kwargs)
+        self.radius = radius
+        self.image_size = image_size
+        self.in_shape = None
+
+    def build(self, input_shape):
+        super(PointsToHeatmap, self).build(input_shape)
+        self.in_shape = input_shape
+
+    def call(self, inputs, **kwargs):
+        def wrapper(ins):
+            coords_len = tf.shape(ins)[0]
+            y_pad = tf.constant(self.image_size[1] - self.radius, dtype=tf.float32)
+            x_pad = tf.constant(self.image_size[0] - self.radius, dtype=tf.float32)
+
+            def make_blob(point):
+                blob = tf.random_uniform((self.radius, self.radius, 1))
+                pad_y = [tf.cast(y_pad * point[1], tf.int32),
+                         tf.cast(y_pad * (1 - point[1]), tf.int32)]
+                pad_x = [tf.cast(x_pad * point[0], tf.int32),
+                         tf.cast(x_pad * (1 - point[0]), tf.int32)]
+                blob_full_size = tf.pad(blob, [pad_y, pad_x, [0, 0]])
+                return tf.reshape(tf.image.resize_images(blob_full_size, self.image_size[0:2]),
+                                  [self.image_size[0], self.image_size[1]])
+
+            blobs = tf.transpose(tf.map_fn(lambda point: make_blob(point), ins),
+                                 [1, 2, 0])
+
+            # initial blur
+            blob_filter = tf.ones((3, 3, coords_len, coords_len)
+                                  )
+            blob_conv = tf.nn.conv2d(tf.expand_dims(blobs, 0), blob_filter,
+                                     (1, 1, 1, 1), padding='SAME')
+            for _i in range(3):  # blur loop
+                blob_filter = blob_filter * 0.8
+                tf.nn.conv2d(tf.expand_dims(blobs, 0), blob_filter,
+                             (1, 1, 1, 1), padding='SAME')
+            blob_norm = blob_conv / tf.reduce_max(blob_conv, axis=(1, 2, 3))
+            return blob_norm
+
+        return tf.reshape(tf.map_fn(lambda coord: wrapper(coord), inputs),
+                          (-1, *self.image_size[0:2], self.in_shape[-2]))
+
+    def compute_output_shape(self, input_shape):
+        return tf.TensorShape([tf.constant([-1]) + self.image_size + [self.num_pairs // 2]])
+        # (-1, height, width, num_points)
 
 
 class ImAug:
