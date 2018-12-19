@@ -221,12 +221,12 @@ class PointsToHeatmap(Layer):
         self.in_shape = input_shape
 
     def call(self, inputs, **kwargs):
-        def wrapper(ins):
+        def wrapper(ins):  # handles single images
             coords_len = tf.shape(ins)[0]
             y_pad = tf.constant(self.image_size[1] - self.radius, dtype=tf.float32)
             x_pad = tf.constant(self.image_size[0] - self.radius, dtype=tf.float32)
 
-            def make_blob(point):
+            def make_blob(point):  # handles single points
                 blob = tf.random_uniform((self.radius, self.radius, 1))
                 pad_y = [tf.cast(y_pad * point[1], tf.int32),
                          tf.cast(y_pad * (1 - point[1]), tf.int32)]
@@ -423,6 +423,8 @@ if __name__ == '__main__':
     plt.imshow(train_data[0, :, :, 0])
     plt.show()
 
+    # -------- DATA LOADED ---------
+
     model1 = ImAug([96, 96, 1], [48, 48, 1], ratios=[0.5, 0.75, 1.], shrink_factors=[0.5, 0.75, 1.],
                    pad_mode='CONSTANT')
     model2 = ImAug([48, 48, 1], [72, 72, 1], p_im_aug=model1,
@@ -434,14 +436,13 @@ if __name__ == '__main__':
     model.add(keras.layers.Conv2D(1, (3, 3), padding='SAME', activation='relu', name='convolution',
                                   input_shape=(72, 72, 1)))
     model.add(keras.layers.UpSampling2D())
-    model.predict_generator(
+    out = model.predict_generator(
         generator=AugGenerator(model2),
         use_multiprocessing=True,
         workers=3
     )
 
     keras.utils.plot_model(model, 'ImAug_chain.png', show_shapes=True)
-    out = model.predict(train_data[0:5])
     for i, img in enumerate(out[-1::-1]):
         plt.imshow(img[:, :, 0])
         plt.show()

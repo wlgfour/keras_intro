@@ -9,10 +9,14 @@ from ImageAugmentation import *
 # importing and handling data
 IMPORT_DATA = True
 SLICE_DATA = True
-SLICE = 10  # minimum = 3
+SLICE = 10  # minimum = PLOT_NUMBER
+
+# plot information
+PLOT_NUMBER = 1
 
 # modules to test
 TEST_PointsToHeatmap = True
+TEST_ImAug = True
 
 
 if IMPORT_DATA:
@@ -44,7 +48,7 @@ if SLICE_DATA:
     train_data = train_data[0:SLICE]
 
 # plot original images
-for i in range(2):
+for i in range(PLOT_NUMBER):
     plt.imshow(train_data[i, :, :, 0])
     plt.scatter(train_labels[i, :, 0] * 96, train_labels[i, :, 1] * 96, c='r')
     plt.show()
@@ -58,6 +62,27 @@ if TEST_PointsToHeatmap:
     print(f'    input  shape: {np.shape(train_labels)}')
     out = model.predict(train_labels)
     print(f'    output shape: {np.shape(out)}')
-    for i in range(2):
+    for i in range(PLOT_NUMBER):
         plt.imshow(np.sum(out[i, :, :, :], axis=-1))
+        plt.show()
+
+if TEST_ImAug:
+    print('TESTING: ImAug models')
+    print('    model1 has halves the input image')
+    model1 = ImAug([96, 96, 1], [48, 48, 1], ratios=[0.85, 0.9, 1.], shrink_factors=[0.85, 0.9, 1.],
+                   pad_mode='CONSTANT')
+    print('    model2 increases the input_image and takes model1 as input')
+    model2 = ImAug([48, 48, 1], [72, 72, 1], p_im_aug=model1,
+                   ratios=[0.7, 0.9, 1.], shrink_factors=[0.85])
+    # (96, 96)
+
+    out_layer, model_in = model2.get_output_layer()
+    # keras.utils.plot_model(model, 'ImAug_chain.png', show_shapes=True)
+    print(f'    input  shape: {np.shape(train_data)}')
+    out = model2(train_data)
+    print(f'    output shape: {np.shape(out)}')
+    for i, img in enumerate(out[-1::-1]):
+        if i == PLOT_NUMBER:
+            break
+        plt.imshow(img[:, :, 0])
         plt.show()
